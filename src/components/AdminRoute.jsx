@@ -1,10 +1,11 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-function ProtectedRoute({ children }) {
+function AdminRoute({ children }) {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
 
+  // Still checking authentication/profile
   if (loading) {
     return (
       <div
@@ -13,6 +14,10 @@ function ProtectedRoute({ children }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          background: "#F7F9FC",
+          color: "#10233F",
+          fontSize: "16px",
+          fontWeight: "600",
         }}
       >
         Loading...
@@ -33,28 +38,23 @@ function ProtectedRoute({ children }) {
     );
   }
 
-  // Profile is not available
+  // Profile doesn't exist
   if (!profile) {
-    return (
-      <Navigate
-        to="/access-pending"
-        replace
-      />
-    );
+    return <Navigate to="/access-pending" replace />;
   }
 
-  // User has not been approved
+  // Account is not approved
   if (profile.status !== "approved") {
-    return (
-      <Navigate
-        to="/access-pending"
-        replace
-      />
-    );
+    return <Navigate to="/access-pending" replace />;
   }
 
-  // Authenticated + approved
+  // Logged-in approved user, but not an admin
+  if (profile.role !== "admin") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Approved admin
   return children;
 }
 
-export default ProtectedRoute;
+export default AdminRoute;

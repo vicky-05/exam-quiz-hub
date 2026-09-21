@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -15,7 +15,9 @@ import {
   Target,
   Trophy,
 } from "lucide-react";
+
 import { supabase } from "../services/supabase";
+
 import logo from "../assets/exam-quiz-hub-logo.png";
 import darkLogo from "../assets/exam-quiz-hub-logo-dark.png";
 import studyScene from "../assets/login-study-scene.png";
@@ -23,6 +25,7 @@ import rightBooks from "../assets/login-right-books.png";
 
 function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,21 +45,75 @@ function LoginPage() {
     try {
       setLoading(true);
 
+      // 1. Login with Supabase Auth
       const { data, error: loginError } =
         await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
         });
 
-      if (loginError) throw loginError;
+      if (loginError) {
+        throw loginError;
+      }
+
       if (!data?.user) {
         throw new Error("Unable to sign in. Please try again.");
       }
 
-      navigate("/", { replace: true });
+      // 2. Get the user's profile and approval status
+      const { data: profile, error: profileError } =
+        await supabase
+          .from("profiles")
+          .select("status, role")
+          .eq("id", data.user.id)
+          .single();
+
+      if (profileError) {
+        console.error("Profile loading failed:", profileError);
+
+        // Sign out if the account has no valid profile
+        await supabase.auth.signOut();
+
+        throw new Error(
+          "Your account profile could not be loaded. Please try again."
+        );
+      }
+
+      // 3. Pending / rejected users
+      if (
+        profile.status === "pending" ||
+        profile.status === "rejected"
+      ) {
+        navigate("/access-pending", { replace: true });
+        return;
+      }
+
+      // 4. Approved user
+      if (profile.status === "approved") {
+        // If the user originally tried to open a protected page,
+        // return them there after login.
+        const from = location.state?.from;
+
+        if (from) {
+          navigate(from, { replace: true });
+        } else {
+          navigate("/dashboard", { replace: true });
+        }
+
+        return;
+      }
+
+      // 5. Unexpected status
+      await supabase.auth.signOut();
+
+      throw new Error(
+        "Your account has an invalid approval status. Please contact the administrator."
+      );
     } catch (err) {
       console.error("Login failed:", err);
-      setError(err.message || "Unable to sign in. Please try again.");
+      setError(
+        err.message || "Unable to sign in. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -88,9 +145,10 @@ function LoginPage() {
   return (
     <div className="min-h-screen bg-[#F7F9FC] text-[#10233F] dark:bg-[#07111F] dark:text-white">
       <div className="grid min-h-screen lg:grid-cols-[1.02fr_0.98fr]">
+
         {/* LEFT HERO */}
         <section className="relative hidden min-h-screen overflow-hidden bg-[#001F4F] lg:flex lg:flex-col">
-          {/* Exact study-scene crop from the approved visual */}
+
           <img
             src={studyScene}
             alt=""
@@ -98,12 +156,16 @@ function LoginPage() {
             className="pointer-events-none absolute inset-y-0 right-0 z-0 h-full w-[58%] object-cover object-center opacity-75"
           />
 
-          {/* Keep the left reading area dark and blend into the study image */}
           <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-r from-[#001F4F] via-[#001F4F]/95 via-[48%] to-[#001F4F]/25" />
+
           <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-[#001F4F] via-transparent to-[#001F4F]/20" />
 
           <div className="relative z-20 flex min-h-screen flex-col px-10 py-6 xl:px-12">
-            <Link to="/" className="w-fit transition hover:opacity-90">
+
+            <Link
+              to="/"
+              className="w-fit transition hover:opacity-90"
+            >
               <img
                 src={darkLogo}
                 alt="Exam Quiz Hub"
@@ -112,6 +174,7 @@ function LoginPage() {
             </Link>
 
             <div className="my-auto max-w-[570px] pb-12 pt-8">
+
               <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.28em] text-[#FFD23F]">
                 <span className="h-1 w-8 rounded-full bg-[#FFD23F]" />
                 Welcome Back
@@ -127,53 +190,65 @@ function LoginPage() {
               </h1>
 
               <p className="mt-6 max-w-[510px] text-sm leading-6 text-white/70 xl:text-base xl:leading-7">
-                Sign in to access your practice tests, mock exams, track your
-                progress and stay exam ready.
+                Sign in to access your practice tests, mock exams,
+                track your progress and stay exam ready.
               </p>
 
               <div className="mt-8 grid max-w-[530px] gap-3">
-                {benefits.map(({ icon: Icon, title, text }, index) => (
-                  <div
-                    key={title}
-                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#063A72]/55 px-4 py-3 backdrop-blur-[2px]"
-                  >
-                    <div
-                      className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
-                        index === 3
-                          ? "bg-[#F6C400]/20 text-[#FFD23F]"
-                          : "bg-[#009FE3]/20 text-[#19B8F2]"
-                      }`}
-                    >
-                      <Icon size={19} />
-                    </div>
 
-                    <div>
-                      <p className="text-xs font-black text-white">{title}</p>
-                      <p className="mt-0.5 text-[10px] leading-4 text-white/50">
-                        {text}
-                      </p>
+                {benefits.map(
+                  ({ icon: Icon, title, text }, index) => (
+                    <div
+                      key={title}
+                      className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#063A72]/55 px-4 py-3 backdrop-blur-[2px]"
+                    >
+                      <div
+                        className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
+                          index === 3
+                            ? "bg-[#F6C400]/20 text-[#FFD23F]"
+                            : "bg-[#009FE3]/20 text-[#19B8F2]"
+                        }`}
+                      >
+                        <Icon size={19} />
+                      </div>
+
+                      <div>
+                        <p className="text-xs font-black text-white">
+                          {title}
+                        </p>
+
+                        <p className="mt-0.5 text-[10px] leading-4 text-white/50">
+                          {text}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
+
               </div>
 
               <div className="mt-7 flex items-center gap-2 text-[10px] font-bold text-white/55">
-                <CheckCircle2 size={14} className="text-[#FFD23F]" />
+                <CheckCircle2
+                  size={14}
+                  className="text-[#FFD23F]"
+                />
                 Better Exams · Brighter Future
               </div>
+
             </div>
 
             <p className="text-[10px] font-medium text-white/35">
               © 2026 Exam Quiz Hub · Learn · Practice · Achieve
             </p>
+
           </div>
         </section>
 
         {/* RIGHT LOGIN */}
         <section className="relative flex min-h-screen items-start justify-center overflow-hidden bg-[#F7F9FC] px-5 py-5 sm:px-8 lg:py-4 dark:bg-[#07111F]">
+
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_100%_18%,rgba(0,159,227,0.10),transparent_30%),radial-gradient(circle_at_0%_100%,rgba(246,196,0,0.08),transparent_30%)] dark:bg-[radial-gradient(circle_at_100%_18%,rgba(25,184,242,0.08),transparent_30%),radial-gradient(circle_at_0%_100%,rgba(255,210,63,0.06),transparent_30%)]" />
 
-          {/* Right-side books from the approved image */}
           <img
             src={rightBooks}
             alt=""
@@ -182,14 +257,17 @@ function LoginPage() {
           />
 
           <div className="relative z-10 w-full max-w-[480px]">
+
             {/* Mobile branding */}
             <div className="mb-4 flex items-center justify-between lg:hidden">
+
               <Link to="/">
                 <img
                   src={logo}
                   alt="Exam Quiz Hub"
                   className="h-11 w-auto dark:hidden"
                 />
+
                 <img
                   src={darkLogo}
                   alt="Exam Quiz Hub"
@@ -204,9 +282,11 @@ function LoginPage() {
                 <ArrowLeft size={14} />
                 Home
               </Link>
+
             </div>
 
             <div className="mb-3 hidden justify-end lg:flex">
+
               <Link
                 to="/"
                 className="inline-flex items-center gap-1.5 text-xs font-black text-slate-500 transition hover:text-[#003B82] dark:text-[#A8B4C5] dark:hover:text-[#19B8F2]"
@@ -214,10 +294,13 @@ function LoginPage() {
                 <ArrowLeft size={14} />
                 Back to Home
               </Link>
+
             </div>
 
             <div className="rounded-[25px] border border-[#E2E8F0] bg-white p-6 shadow-[0_18px_55px_rgba(16,35,63,0.08)] sm:p-8 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:shadow-[0_20px_60px_rgba(0,0,0,0.24)]">
+
               <div className="text-center">
+
                 <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-[#EAF6FF] text-[#009FE3] dark:bg-[#123554] dark:text-[#19B8F2]">
                   <LockKeyhole size={22} />
                 </div>
@@ -234,6 +317,7 @@ function LoginPage() {
                   Continue your preparation and keep your progress moving
                   forward.
                 </p>
+
               </div>
 
               {error && (
@@ -245,8 +329,14 @@ function LoginPage() {
                 </div>
               )}
 
-              <form onSubmit={handleLogin} className="mt-6 space-y-4">
+              <form
+                onSubmit={handleLogin}
+                className="mt-6 space-y-4"
+              >
+
+                {/* Email */}
                 <div>
+
                   <label
                     htmlFor="email"
                     className="mb-2 block text-xs font-black text-[#10233F] dark:text-white"
@@ -255,23 +345,30 @@ function LoginPage() {
                   </label>
 
                   <div className="relative">
+
                     <Mail
                       size={17}
                       className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                     />
+
                     <input
                       id="email"
                       type="email"
                       autoComplete="email"
                       value={email}
-                      onChange={(event) => setEmail(event.target.value)}
+                      onChange={(event) =>
+                        setEmail(event.target.value)
+                      }
                       placeholder="you@example.com"
                       className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] py-3.5 pl-11 pr-4 text-sm font-semibold text-[#10233F] outline-none transition placeholder:text-slate-400 focus:border-[#009FE3] focus:ring-4 focus:ring-[#009FE3]/10 dark:border-[#243A55] dark:bg-[#07111F] dark:text-white dark:placeholder:text-[#718096] dark:focus:border-[#19B8F2] dark:focus:ring-[#19B8F2]/10"
                     />
+
                   </div>
                 </div>
 
+                {/* Password */}
                 <div>
+
                   <label
                     htmlFor="password"
                     className="mb-2 block text-xs font-black text-[#10233F] dark:text-white"
@@ -280,24 +377,33 @@ function LoginPage() {
                   </label>
 
                   <div className="relative">
+
                     <LockKeyhole
                       size={17}
                       className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                     />
+
                     <input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       value={password}
-                      onChange={(event) => setPassword(event.target.value)}
+                      onChange={(event) =>
+                        setPassword(event.target.value)
+                      }
                       placeholder="Enter your password"
                       className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] py-3.5 pl-11 pr-12 text-sm font-semibold text-[#10233F] outline-none transition placeholder:text-slate-400 focus:border-[#009FE3] focus:ring-4 focus:ring-[#009FE3]/10 dark:border-[#243A55] dark:bg-[#07111F] dark:text-white dark:placeholder:text-[#718096] dark:focus:border-[#19B8F2] dark:focus:ring-[#19B8F2]/10"
                     />
+
                     <button
                       type="button"
-                      onClick={() => setShowPassword((current) => !current)}
+                      onClick={() =>
+                        setShowPassword((current) => !current)
+                      }
                       aria-label={
-                        showPassword ? "Hide password" : "Show password"
+                        showPassword
+                          ? "Hide password"
+                          : "Show password"
                       }
                       className="absolute right-3.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-[#003B82] dark:hover:bg-[#12243B] dark:hover:text-[#19B8F2]"
                     >
@@ -307,34 +413,46 @@ function LoginPage() {
                         <Eye size={17} />
                       )}
                     </button>
+
                   </div>
                 </div>
 
+                {/* Remember / Forgot */}
                 <div className="flex items-center justify-between gap-4 text-xs">
+
                   <label className="inline-flex items-center gap-2 font-semibold text-slate-600 dark:text-[#A8B4C5]">
+
                     <input
                       type="checkbox"
                       className="h-4 w-4 rounded border-slate-300 accent-[#009FE3]"
                     />
+
                     Remember me
+
                   </label>
 
-                  <button
-                    type="button"
+                  <Link
+                    to="/forgot-password"
                     className="font-black text-[#0068C9] transition hover:text-[#009FE3] dark:text-[#19B8F2]"
                   >
                     Forgot password?
-                  </button>
+                  </Link>
+
                 </div>
 
+                {/* Sign In */}
                 <button
                   type="submit"
                   disabled={loading}
                   className="group flex w-full items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-[#003B82] to-[#009FE3] px-5 py-3.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,96,180,0.20)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_rgba(0,96,180,0.28)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
                 >
+
                   {loading ? (
                     <>
-                      <Loader2 size={18} className="animate-spin" />
+                      <Loader2
+                        size={18}
+                        className="animate-spin"
+                      />
                       Signing in...
                     </>
                   ) : (
@@ -346,16 +464,22 @@ function LoginPage() {
                       />
                     </>
                   )}
+
                 </button>
+
               </form>
 
               <div className="mt-6 border-t border-[#E2E8F0] pt-5 dark:border-[#243A55]">
+
                 <div className="flex items-center justify-center gap-2 text-[10px] font-bold text-slate-400 dark:text-[#8190A5]">
+
                   <ShieldCheck
                     size={14}
                     className="text-[#009FE3] dark:text-[#19B8F2]"
                   />
+
                   Your account information is securely protected
+
                 </div>
 
                 <p className="mt-4 text-center text-xs font-medium text-slate-500 dark:text-[#A8B4C5]">
@@ -368,14 +492,18 @@ function LoginPage() {
                 >
                   Create an account
                 </Link>
+
               </div>
+
             </div>
 
             <p className="mt-4 text-center text-[10px] font-medium text-slate-400 dark:text-[#64748B] lg:hidden">
               © 2026 Exam Quiz Hub · Learn · Practice · Achieve
             </p>
+
           </div>
         </section>
+
       </div>
     </div>
   );

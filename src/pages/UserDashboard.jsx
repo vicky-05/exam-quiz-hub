@@ -385,7 +385,7 @@ function ErrorDashboard({ message, onRetry }) {
 }
 
 function UserDashboard() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, profile, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
 
   const [attempts, setAttempts] = useState([]);
@@ -659,6 +659,7 @@ function UserDashboard() {
   }
 
   const displayName =
+    profile?.full_name ||
     user.user_metadata?.full_name ||
     user.user_metadata?.name ||
     user.email?.split("@")[0] ||
@@ -687,7 +688,7 @@ function UserDashboard() {
 
                   <span className="inline-flex items-center gap-2 rounded-full bg-white dark:bg-[#0D1B2E] px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#A56A00] shadow-sm ring-1 ring-[#F6C400]/20">
                     <Medal size={13} />
-                    Premium learner
+                    Active learner
                   </span>
                 </div>
 
