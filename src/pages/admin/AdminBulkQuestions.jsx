@@ -77,7 +77,7 @@ function AdminBulkQuestions() {
 
       setError(
         err?.message ||
-          "Unable to load tests."
+        "Unable to load tests."
       );
     } finally {
       setLoadingTests(false);
@@ -298,7 +298,7 @@ function AdminBulkQuestions() {
 
       setError(
         err?.message ||
-          "Unable to read the CSV file."
+        "Unable to read the CSV file."
       );
 
       setStep("error");
@@ -502,6 +502,7 @@ function AdminBulkQuestions() {
 
       const payload = validRows.map(
         (row) => ({
+          id: `q_${crypto.randomUUID()}`,
           test_id: row.test_id.trim(),
           question_text:
             row.question_text.trim(),
@@ -512,9 +513,7 @@ function AdminBulkQuestions() {
           correct_answer: Number(
             row.correct_answer
           ),
-          question_type:
-            row.question_type?.trim() ||
-            "mcq",
+          question_type: "single",
           marks: Number(row.marks),
           negative_marks: Number(
             row.negative_marks
@@ -544,10 +543,9 @@ function AdminBulkQuestions() {
         data?.length || payload.length;
 
       setSuccess(
-        `${importedCount} question${
-          importedCount === 1
-            ? ""
-            : "s"
+        `${importedCount} question${importedCount === 1
+          ? ""
+          : "s"
         } imported successfully.`
       );
 
@@ -566,7 +564,7 @@ function AdminBulkQuestions() {
 
       setError(
         err?.message ||
-          "Unable to import questions."
+        "Unable to import questions."
       );
     } finally {
       setImporting(false);
@@ -584,7 +582,7 @@ function AdminBulkQuestions() {
       REQUIRED_COLUMNS.join(",");
 
     const example =
-      'TEST-ID-HERE,"Example question?","Option A","Option B","Option C","Option D",0,"mcq",1,0,1,true';
+      'TEST-ID-HERE,"Example question?","Option A","Option B","Option C","Option D",0,"single",1,0,1,true';
 
     const csv =
       `${header}\n${example}\n`;
@@ -1009,11 +1007,10 @@ function AdminBulkQuestions() {
                           key={
                             row._rowNumber
                           }
-                          className={`border-b border-slate-50 ${
-                            hasError
+                          className={`border-b border-slate-50 ${hasError
                               ? "bg-red-50/50"
                               : ""
-                          }`}
+                            }`}
                         >
                           <td className="px-4 py-4 text-sm font-bold text-slate-500">
                             {row._rowNumber}
