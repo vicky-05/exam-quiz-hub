@@ -544,6 +544,8 @@ function QuizPage() {
     setShowSubmitModal,
   ] = useState(false);
 
+  const autoSubmitTriggeredRef = useRef(false);
+
 
   /*
     Mobile Question Palette drawer.
@@ -636,7 +638,13 @@ function QuizPage() {
         }
 
         if (remaining <= 0) {
-          setShowSubmitModal(true);
+          if (!autoSubmitTriggeredRef.current) {
+            autoSubmitTriggeredRef.current = true;
+            setTimeout(() => {
+              handleSubmitTest(0);
+            }, 0);
+          }
+
           return true;
         }
 
@@ -1131,7 +1139,7 @@ function QuizPage() {
      SUBMIT TEST
   ========================================================= */
 
-  const handleSubmitTest = async () => {
+  const handleSubmitTest = async (forcedTimeRemaining = null) => {
 
     if (!test || savingAttempt) {
       return;
@@ -1200,10 +1208,15 @@ function QuizPage() {
         correctAnswers -
         wrongAnswers;
 
+      const effectiveTimeRemaining =
+        forcedTimeRemaining !== null
+          ? Number(forcedTimeRemaining)
+          : Number(timeRemaining || 0);
+
       const timeTakenSeconds = Math.max(
         0,
         Number(test.durationMinutes || 0) * 60 -
-        Number(timeRemaining || 0)
+        effectiveTimeRemaining
       );
 
       /*
@@ -1291,7 +1304,10 @@ function QuizPage() {
         answers,
         questionStatuses,
         markedForReview,
-        timeRemaining,
+        timeRemaining:
+          forcedTimeRemaining !== null
+            ? Number(forcedTimeRemaining)
+            : timeRemaining,
         submittedAt,
         correctAnswers,
         wrongAnswers,
