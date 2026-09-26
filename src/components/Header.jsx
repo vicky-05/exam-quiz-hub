@@ -35,6 +35,7 @@ function Header() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [examOpen, setExamOpen] = useState(false);
+  const [availableExams, setAvailableExams] = useState([]);
   const [accountOpen, setAccountOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
@@ -65,6 +66,38 @@ function Header() {
     "Student";
 
   const firstName = displayName.split(" ")[0];
+  const userInitial = firstName?.charAt(0)?.toUpperCase() || "S";
+
+  /* =========================================================
+     LOAD AVAILABLE EXAMS
+     Supabase is the source of truth for the Exams dropdown.
+  ========================================================= */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAvailableExams() {
+      try {
+        const exams = (await getExams()) || [];
+
+        if (!cancelled) {
+          setAvailableExams(exams);
+        }
+      } catch (error) {
+        console.error("Unable to load exams for header:", error);
+
+        if (!cancelled) {
+          setAvailableExams([]);
+        }
+      }
+    }
+
+    loadAvailableExams();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /* =========================================================
      THEME
@@ -631,35 +664,45 @@ function Header() {
                       </p>
                     </div>
 
-                    <Link
-                      to="/exam/rrb"
-                      onClick={() => setExamOpen(false)}
-                      className="group flex items-center gap-3 rounded-xl p-3 transition hover:bg-[#F2F7FD] dark:hover:bg-white/5"
-                    >
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#EAF4FF] text-[#003B82] dark:bg-[#145AA8]/20 dark:text-[#19B8F2]">
-                        <BookOpen size={19} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-black text-[#10233F] dark:text-white">RRB</p>
-                        <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Railway recruitment exams</p>
-                      </div>
-                      <ArrowIcon />
-                    </Link>
+                    {availableExams.length > 0 ? (
+                      availableExams.map((exam, index) => (
+                        <Link
+                          key={exam.id}
+                          to={`/exam/${exam.id}`}
+                          onClick={() => setExamOpen(false)}
+                          className="group flex items-center gap-3 rounded-xl p-3 transition hover:bg-[#F2F7FD] dark:hover:bg-white/5"
+                        >
+                          <div
+                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                              index % 2 === 0
+                                ? "bg-[#EAF4FF] text-[#003B82] dark:bg-[#145AA8]/20 dark:text-[#19B8F2]"
+                                : "bg-[#FFF6D9] text-[#D98F00] dark:bg-[#F6C400]/15 dark:text-[#FFD23F]"
+                            }`}
+                          >
+                            {index % 2 === 0 ? (
+                              <BookOpen size={19} />
+                            ) : (
+                              <GraduationCap size={19} />
+                            )}
+                          </div>
 
-                    <Link
-                      to="/exam/tnpsc"
-                      onClick={() => setExamOpen(false)}
-                      className="group flex items-center gap-3 rounded-xl p-3 transition hover:bg-[#FFF9E8] dark:hover:bg-white/5"
-                    >
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#FFF6D9] text-[#D98F00] dark:bg-[#F6C400]/15 dark:text-[#FFD23F]">
-                        <GraduationCap size={19} />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-black text-[#10233F] dark:text-white">
+                              {exam.name}
+                            </p>
+                            <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
+                              {exam.full_name || "Competitive exam preparation"}
+                            </p>
+                          </div>
+
+                          <ArrowIcon />
+                        </Link>
+                      ))
+                    ) : (
+                      <div className="px-3 py-4 text-center text-xs font-bold text-slate-400 dark:text-slate-500">
+                        No exams available.
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-black text-[#10233F] dark:text-white">TNPSC</p>
-                        <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Tamil Nadu public service exams</p>
-                      </div>
-                      <ArrowIcon />
-                    </Link>
+                    )}
                   </div>
                 ) : null}
               </div>
@@ -712,8 +755,8 @@ function Header() {
                     className="group flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-[#003B82] to-[#009FE3] px-3.5 text-white shadow-[0_8px_22px_rgba(0,96,180,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(0,96,180,0.30)] sm:h-11"
                     aria-expanded={accountOpen}
                   >
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15 ring-1 ring-white/15">
-                      <UserRound size={15} />
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15 text-[11px] font-black ring-1 ring-white/15">
+                      {userInitial}
                     </span>
                     <span className="max-w-[82px] truncate text-xs font-black">{firstName}</span>
                     <ChevronDown size={13} className={`transition-transform ${accountOpen ? "rotate-180" : ""}`} />
@@ -979,8 +1022,8 @@ function Header() {
 
               {user ? (
                 <div className="mb-5 flex items-center gap-3 rounded-2xl bg-[#EAF4FF] p-4 dark:bg-white/5">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#003B82] text-white">
-                    <UserRound size={19} />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#003B82] text-base font-black text-white">
+                    {userInitial}
                   </div>
 
                   <div className="min-w-0">
@@ -1035,21 +1078,22 @@ function Header() {
 
                 {examOpen ? (
                   <div className="ml-10 space-y-1 border-l border-slate-200 pl-3 dark:border-white/10">
-                    <Link
-                      to="/exam/rrb"
-                      onClick={() => setMobileOpen(false)}
-                      className="block rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-[#EAF4FF] hover:text-[#003B82] dark:text-slate-300"
-                    >
-                      RRB
-                    </Link>
-
-                    <Link
-                      to="/exam/tnpsc"
-                      onClick={() => setMobileOpen(false)}
-                      className="block rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-[#EAF4FF] hover:text-[#003B82] dark:text-slate-300"
-                    >
-                      TNPSC
-                    </Link>
+                    {availableExams.length > 0 ? (
+                      availableExams.map((exam) => (
+                        <Link
+                          key={exam.id}
+                          to={`/exam/${exam.id}`}
+                          onClick={() => setMobileOpen(false)}
+                          className="block rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-[#EAF4FF] hover:text-[#003B82] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-[#19B8F2]"
+                        >
+                          {exam.name}
+                        </Link>
+                      ))
+                    ) : (
+                      <p className="px-3 py-2.5 text-xs font-bold text-slate-400 dark:text-slate-500">
+                        No exams available.
+                      </p>
+                    )}
                   </div>
                 ) : null}
 

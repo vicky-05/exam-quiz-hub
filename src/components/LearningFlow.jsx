@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   ArrowRight,
@@ -10,6 +10,7 @@ import {
   Building2,
   Calculator,
   Check,
+  ChevronDown,
   ChevronRight,
   Clock3,
   Database,
@@ -23,6 +24,10 @@ import {
   Microscope,
   Newspaper,
   Play,
+  Search,
+  Shuffle,
+  ListOrdered,
+  X,
   Scale,
   ScrollText,
   Shield,
@@ -213,6 +218,51 @@ function CustomPractice({
   handleStartCustomQuiz,
   formatCustomDuration,
 }) {
+  const [bankOpen, setBankOpen] = useState(false);
+  const [bankSearch, setBankSearch] = useState("");
+  const bankDropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!bankOpen) return;
+
+    function handleOutsidePointerDown(event) {
+      if (
+        bankDropdownRef.current &&
+        !bankDropdownRef.current.contains(event.target)
+      ) {
+        setBankOpen(false);
+        setBankSearch("");
+      }
+    }
+
+    document.addEventListener(
+      "pointerdown",
+      handleOutsidePointerDown
+    );
+
+    return () => {
+      document.removeEventListener(
+        "pointerdown",
+        handleOutsidePointerDown
+      );
+    };
+  }, [bankOpen]);
+
+  const selectedBankTest =
+    subjectTests.find((item) => item.id === customTestId) ||
+    subjectTests[0] ||
+    null;
+
+  const normalizedBankSearch = bankSearch.trim().toLowerCase();
+
+  const filteredBankTests = normalizedBankSearch
+    ? subjectTests.filter((item) =>
+        `set ${item.setNumber} ${item.title} ${item.totalQuestions}`
+          .toLowerCase()
+          .includes(normalizedBankSearch)
+      )
+    : subjectTests;
+
   return (
     <section className="mt-8 rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-[#243A55] dark:bg-[#0D1B2E] sm:p-7 lg:p-8">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -252,22 +302,108 @@ function CustomPractice({
           <label className="text-[11px] font-black uppercase tracking-[0.14em] text-[#001F4F] dark:text-white/80">
             Choose question bank
           </label>
-          <select
-            value={customTestId}
-            onChange={handleCustomTestChange}
-            className="mt-2 w-full rounded-2xl border border-slate-200 bg-[#F7F9FC] px-4 py-4 text-sm font-bold text-[#001F4F] outline-none transition focus:border-[#009FE3] focus:ring-4 focus:ring-[#009FE3]/10 dark:border-[#243A55] dark:bg-[#07111F] dark:text-white"
+          <div
+            ref={bankDropdownRef}
+            className="relative mt-2"
           >
-            {subjectTests.map((item) => (
-              <option
-                key={item.id}
-                value={item.id}
-                className="text-[#001F4F]"
-              >
-                Set {item.setNumber} · {item.title} · {item.totalQuestions}{" "}
-                questions
-              </option>
-            ))}
-          </select>
+            <button
+              type="button"
+              onClick={() => setBankOpen((previous) => !previous)}
+              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-[#F7F9FC] px-4 py-4 text-left text-sm font-bold text-[#001F4F] outline-none transition hover:border-[#009FE3]/50 focus:border-[#009FE3] focus:ring-4 focus:ring-[#009FE3]/10 dark:border-[#243A55] dark:bg-[#07111F] dark:text-white"
+              aria-haspopup="listbox"
+              aria-expanded={bankOpen}
+            >
+              <span className="min-w-0">
+                <span className="block truncate">
+                  {selectedBankTest
+                    ? `Set ${selectedBankTest.setNumber} · ${selectedBankTest.title}`
+                    : "Choose a question bank"}
+                </span>
+                {selectedBankTest && (
+                  <span className="mt-1 block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-[#8FA0B4]">
+                    {selectedBankTest.totalQuestions} questions ·{" "}
+                    {selectedBankTest.durationMinutes} min
+                  </span>
+                )}
+              </span>
+              <ChevronDown
+                size={18}
+                className={`shrink-0 text-slate-400 transition ${
+                  bankOpen ? "rotate-180 text-[#009FE3]" : ""
+                }`}
+              />
+            </button>
+
+            {bankOpen && (
+              <div className="absolute left-0 right-0 z-40 mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_20px_55px_rgba(0,31,79,0.16)] dark:border-[#243A55] dark:bg-[#0D1B2E]">
+                <div className="border-b border-slate-100 p-3 dark:border-[#243A55]">
+                  <div className="relative">
+                    <Search
+                      size={16}
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      type="text"
+                      value={bankSearch}
+                      onChange={(event) => setBankSearch(event.target.value)}
+                      placeholder="Search sets..."
+                      className="w-full rounded-xl border border-slate-200 bg-[#F7F9FC] py-2.5 pl-9 pr-3 text-xs font-bold text-[#001F4F] outline-none focus:border-[#009FE3] dark:border-[#243A55] dark:bg-[#07111F] dark:text-white"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <div className="max-h-72 overflow-y-auto p-2">
+                  {filteredBankTests.length > 0 ? (
+                    filteredBankTests.map((item) => {
+                      const active = item.id === customTestId;
+
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          role="option"
+                          aria-selected={active}
+                          onClick={() => {
+                            handleCustomTestChange({
+                              target: { value: item.id },
+                            });
+                            setBankOpen(false);
+                            setBankSearch("");
+                          }}
+                          className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition ${
+                            active
+                              ? "bg-[#EAF6FD] text-[#003B82] dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]"
+                              : "text-[#001F4F] hover:bg-[#F7F9FC] dark:text-white dark:hover:bg-white/5"
+                          }`}
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-xs font-black">
+                              Set {item.setNumber} · {item.title}
+                            </span>
+                            <span className="mt-1 block text-[10px] font-bold text-slate-400 dark:text-[#8FA0B4]">
+                              {item.totalQuestions} questions ·{" "}
+                              {item.durationMinutes} min
+                            </span>
+                          </span>
+                          {active && (
+                            <Check
+                              size={16}
+                              className="shrink-0 text-[#009FE3]"
+                            />
+                          )}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <p className="px-3 py-8 text-center text-xs font-bold text-slate-400 dark:text-[#8FA0B4]">
+                      No matching sets found.
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div>
@@ -486,14 +622,16 @@ function PracticeSetCard({
   subjectId,
   subjectName,
   test,
+  onStart,
 }) {
   const { icon: SubjectIcon, label: subjectVisualLabel } =
     getSubjectVisual(subjectName);
 
   return (
-    <Link
-      to={`/exam/${exam.id}/${track.id}/quiz/${subjectId}/set-${test.setNumber}`}
-      className="group relative overflow-hidden rounded-[24px] border border-slate-200 bg-white p-5 transition duration-200 hover:-translate-y-1 hover:border-[#009FE3]/50 hover:shadow-[0_18px_45px_rgba(0,59,130,0.10)] dark:border-[#243A55] dark:bg-[#0D1B2E] dark:hover:border-[#19B8F2]/40 sm:p-6"
+    <button
+      type="button"
+      onClick={() => onStart(test)}
+      className="group relative w-full overflow-hidden rounded-[24px] border border-slate-200 bg-white p-5 text-left transition duration-200 hover:-translate-y-1 hover:border-[#009FE3]/50 hover:shadow-[0_18px_45px_rgba(0,59,130,0.10)] dark:border-[#243A55] dark:bg-[#0D1B2E] dark:hover:border-[#19B8F2]/40 sm:p-6"
     >
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#003B82] via-[#009FE3] to-[#F6C400] opacity-0 transition group-hover:opacity-100" />
 
@@ -555,7 +693,171 @@ function PracticeSetCard({
           <ArrowRight size={16} />
         </span>
       </div>
-    </Link>
+    </button>
+  );
+}
+
+function StartExamModal({ test, onClose, onStart }) {
+  const [questionOrder, setQuestionOrder] = useState("sequential");
+
+  if (!test) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-[#001F4F]/65 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="start-exam-title"
+    >
+      <div className="w-full max-w-xl overflow-hidden rounded-t-[30px] bg-white shadow-[0_30px_90px_rgba(0,31,79,0.30)] dark:bg-[#0D1B2E] sm:rounded-[30px]">
+        <div className="flex items-start justify-between border-b border-slate-100 px-5 py-5 dark:border-[#243A55] sm:px-7">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#009FE3]">
+              Ready to begin
+            </p>
+            <h2
+              id="start-exam-title"
+              className="mt-1 text-2xl font-black tracking-tight text-[#001F4F] dark:text-white"
+            >
+              Start Set {test.setNumber}
+            </h2>
+            <p className="mt-1 max-w-md truncate text-sm font-semibold text-slate-500 dark:text-[#A8B4C5]">
+              {test.title}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-[#001F4F] dark:hover:bg-white/5 dark:hover:text-white"
+            aria-label="Close"
+          >
+            <X size={19} />
+          </button>
+        </div>
+
+        <div className="p-5 sm:p-7">
+          <div className="grid grid-cols-3 gap-2 rounded-2xl bg-[#F7F9FC] p-2 dark:bg-[#07111F]">
+            <div className="rounded-xl px-3 py-3 text-center">
+              <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                Questions
+              </p>
+              <p className="mt-1 text-base font-black text-[#001F4F] dark:text-white">
+                {test.totalQuestions}
+              </p>
+            </div>
+            <div className="rounded-xl px-3 py-3 text-center">
+              <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                Duration
+              </p>
+              <p className="mt-1 text-base font-black text-[#001F4F] dark:text-white">
+                {test.durationMinutes} min
+              </p>
+            </div>
+            <div className="rounded-xl px-3 py-3 text-center">
+              <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                Marking
+              </p>
+              <p className="mt-1 text-base font-black text-[#001F4F] dark:text-white">
+                {Number(test.negativeMarks) > 0
+                  ? `-${test.negativeMarks}`
+                  : "None"}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-7">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-[#001F4F] dark:text-white">
+              Question order
+            </p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-[#A8B4C5]">
+              Choose how questions should appear in this attempt.
+            </p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setQuestionOrder("sequential")}
+                className={`rounded-2xl border p-4 text-left transition ${
+                  questionOrder === "sequential"
+                    ? "border-[#009FE3] bg-[#EAF6FD] shadow-sm dark:border-[#19B8F2] dark:bg-[#19B8F2]/10"
+                    : "border-slate-200 bg-white hover:border-[#009FE3]/40 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:hover:border-[#19B8F2]/40"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
+                      questionOrder === "sequential"
+                        ? "bg-[#003B82] text-white dark:bg-[#145AA8]"
+                        : "bg-[#F7F9FC] text-[#003B82] dark:bg-[#07111F] dark:text-[#19B8F2]"
+                    }`}
+                  >
+                    <ListOrdered size={19} />
+                  </div>
+                  <div>
+                    <p className="font-black text-[#001F4F] dark:text-white">
+                      Sequential
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-[#A8B4C5]">
+                      Follow the original question order.
+                    </p>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setQuestionOrder("random")}
+                className={`rounded-2xl border p-4 text-left transition ${
+                  questionOrder === "random"
+                    ? "border-[#009FE3] bg-[#EAF6FD] shadow-sm dark:border-[#19B8F2] dark:bg-[#19B8F2]/10"
+                    : "border-slate-200 bg-white hover:border-[#009FE3]/40 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:hover:border-[#19B8F2]/40"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
+                      questionOrder === "random"
+                        ? "bg-[#003B82] text-white dark:bg-[#145AA8]"
+                        : "bg-[#F7F9FC] text-[#003B82] dark:bg-[#07111F] dark:text-[#19B8F2]"
+                    }`}
+                  >
+                    <Shuffle size={19} />
+                  </div>
+                  <div>
+                    <p className="font-black text-[#001F4F] dark:text-white">
+                      Randomized
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-[#A8B4C5]">
+                      Shuffle the question order for this attempt.
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-7 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 dark:border-[#243A55] sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-black text-[#001F4F] transition hover:border-slate-300 dark:border-[#243A55] dark:text-white"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => onStart(questionOrder)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#003B82] px-6 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-[#002D66] dark:bg-[#145AA8] dark:hover:bg-[#1769C0]"
+            >
+              <Play size={16} fill="currentColor" />
+              Start Exam
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -575,6 +877,12 @@ function SubjectSets() {
   const [customQuestionCount, setCustomQuestionCount] = useState(100);
   const [customInput, setCustomInput] = useState("100");
   const [customError, setCustomError] = useState("");
+
+  const [setSearch, setSetSearch] = useState("");
+  const [setNumberFilter, setSetNumberFilter] = useState("all");
+  const [visibleSetCount, setVisibleSetCount] = useState(20);
+  const [startExamTest, setStartExamTest] = useState(null);
+  const [startCustomTest, setStartCustomTest] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -640,6 +948,11 @@ function SubjectSets() {
         }));
 
         setSubjectTests(formattedTests);
+        setVisibleSetCount(20);
+        setSetSearch("");
+        setSetNumberFilter("all");
+        setStartExamTest(null);
+        setStartCustomTest(null);
 
         const firstTest = formattedTests[0];
         const firstMax = Number(firstTest?.totalQuestions || 0);
@@ -811,6 +1124,25 @@ function SubjectSets() {
     setCustomError("");
   }
 
+  function handleStartExam(questionOrder) {
+    const order =
+      questionOrder === "random" ? "random" : "sequential";
+
+    if (startCustomTest) {
+      const count = Number(startCustomTest.customCount || 0);
+
+      window.location.href =
+        `/exam/${exam.id}/${track.id}/quiz/${subjectId}/set-${startCustomTest.setNumber}?custom=1&count=${count}&order=${order}`;
+
+      return;
+    }
+
+    if (!startExamTest) return;
+
+    window.location.href =
+      `/exam/${exam.id}/${track.id}/quiz/${subjectId}/set-${startExamTest.setNumber}?order=${order}`;
+  }
+
   function handleStartCustomQuiz() {
     if (!selectedCustomTest) {
       setCustomError("Please choose a practice set first.");
@@ -832,8 +1164,34 @@ function SubjectSets() {
       return;
     }
 
-    window.location.href = `/exam/${exam.id}/${track.id}/quiz/${subjectId}/set-${selectedCustomTest.setNumber}?custom=1&count=${count}`;
+    setStartCustomTest({
+      ...selectedCustomTest,
+      customCount: count,
+    });
   }
+
+  const normalizedSetSearch = setSearch.trim().toLowerCase();
+
+  const filteredSubjectTests = subjectTests.filter((test) => {
+    const matchesSearch =
+      !normalizedSetSearch ||
+      `set ${test.setNumber} ${test.title} ${test.totalQuestions}`
+        .toLowerCase()
+        .includes(normalizedSetSearch);
+
+    const matchesSetNumber =
+      setNumberFilter === "all" ||
+      String(test.setNumber) === String(setNumberFilter);
+
+    return matchesSearch && matchesSetNumber;
+  });
+
+  const displayedSubjectTests = filteredSubjectTests.slice(
+    0,
+    visibleSetCount
+  );
+
+  const hasMoreSets = displayedSubjectTests.length < filteredSubjectTests.length;
 
   return (
     <div className="min-h-screen bg-[#F7F9FC] text-[#001F4F] dark:bg-[#07111F] dark:text-white">
@@ -876,38 +1234,127 @@ function SubjectSets() {
             <div className="flex flex-col gap-3 border-b border-slate-200 pb-6 dark:border-[#243A55] sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#009FE3]">
-                  Practice library
+                  Practice library · {subjectName}
                 </p>
                 <h2 className="mt-2 text-3xl font-black tracking-tight text-[#001F4F] dark:text-white">
                   Choose a Practice Set
                 </h2>
                 <p className="mt-2 text-sm text-slate-500 dark:text-[#A8B4C5]">
-                  Pick a set and enter the focused quiz environment.
+                  Search and filter sets from this subject only.
                 </p>
               </div>
 
               {subjectTests.length > 0 && (
                 <span className="inline-flex w-fit items-center gap-2 rounded-full bg-[#EAF6FD] px-3.5 py-2 text-xs font-black text-[#003B82] dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]">
                   <ListChecks size={14} />
-                  {subjectTests.length}{" "}
+                  {filteredSubjectTests.length} of {subjectTests.length}{" "}
                   {subjectTests.length === 1 ? "Set" : "Sets"}
                 </span>
               )}
             </div>
 
             {subjectTests.length > 0 ? (
-              <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {subjectTests.map((test) => (
-                  <PracticeSetCard
-                    key={test.id}
-                    exam={exam}
-                    track={track}
-                    subjectId={subjectId}
-                    subjectName={subjectName}
-                    test={test}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_190px_auto]">
+                  <div className="relative">
+                    <Search
+                      size={17}
+                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      type="search"
+                      value={setSearch}
+                      onChange={(event) => {
+                        setSetSearch(event.target.value);
+                        setVisibleSetCount(20);
+                      }}
+                      placeholder={`Search ${subjectName} sets...`}
+                      className="w-full rounded-2xl border border-slate-200 bg-white py-3.5 pl-11 pr-4 text-sm font-bold text-[#001F4F] outline-none transition placeholder:text-slate-400 focus:border-[#009FE3] focus:ring-4 focus:ring-[#009FE3]/10 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:text-white dark:placeholder:text-[#70839A]"
+                    />
+                  </div>
+
+                  <select
+                    value={setNumberFilter}
+                    onChange={(event) => {
+                      setSetNumberFilter(event.target.value);
+                      setVisibleSetCount(20);
+                    }}
+                    className="rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-black text-[#001F4F] outline-none transition focus:border-[#009FE3] focus:ring-4 focus:ring-[#009FE3]/10 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:text-white"
+                    aria-label="Filter by set number"
+                  >
+                    <option value="all">All Sets</option>
+                    {subjectTests.map((test) => (
+                      <option key={test.id} value={test.setNumber}>
+                        Set {test.setNumber}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSetSearch("");
+                      setSetNumberFilter("all");
+                      setVisibleSetCount(20);
+                    }}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-black text-[#003B82] transition hover:border-[#009FE3]/40 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:text-[#19B8F2]"
+                  >
+                    <X size={15} />
+                    Clear
+                  </button>
+                </div>
+
+                {filteredSubjectTests.length > 0 ? (
+                  <>
+                    <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {displayedSubjectTests.map((test) => (
+                        <PracticeSetCard
+                          key={test.id}
+                          exam={exam}
+                          track={track}
+                          subjectId={subjectId}
+                          subjectName={subjectName}
+                          test={test}
+                          onStart={setStartExamTest}
+                        />
+                      ))}
+                    </div>
+
+                    <div className="mt-8 flex flex-col items-center gap-3">
+                      <p className="text-xs font-bold text-slate-400 dark:text-[#8FA0B4]">
+                        Showing {displayedSubjectTests.length} of{" "}
+                        {filteredSubjectTests.length} matching sets
+                      </p>
+
+                      {hasMoreSets && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setVisibleSetCount((count) => count + 20)
+                          }
+                          className="inline-flex items-center gap-2 rounded-2xl border border-[#009FE3]/30 bg-white px-6 py-3.5 text-sm font-black text-[#003B82] shadow-sm transition hover:-translate-y-0.5 hover:border-[#009FE3] hover:bg-[#EAF6FD] dark:border-[#19B8F2]/30 dark:bg-[#0D1B2E] dark:text-[#19B8F2] dark:hover:bg-[#19B8F2]/10"
+                        >
+                          Load More Sets
+                          <ArrowRight size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-7 rounded-[26px] border border-dashed border-slate-300 bg-white p-10 text-center dark:border-[#243A55] dark:bg-[#0D1B2E]">
+                    <Search
+                      size={28}
+                      className="mx-auto text-slate-300 dark:text-slate-600"
+                    />
+                    <h3 className="mt-4 text-lg font-black text-[#001F4F] dark:text-white">
+                      No matching sets
+                    </h3>
+                    <p className="mt-2 text-sm text-slate-500 dark:text-[#A8B4C5]">
+                      Try another search term or clear the filters.
+                    </p>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="mt-7 rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center dark:border-[#243A55] dark:bg-[#0D1B2E] sm:p-14">
                 <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#EAF6FD] text-[#003B82] dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]">
@@ -946,6 +1393,17 @@ function SubjectSets() {
           </section>
         </div>
       </main>
+
+      {(startExamTest || startCustomTest) && (
+        <StartExamModal
+          test={startExamTest || startCustomTest}
+          onClose={() => {
+            setStartExamTest(null);
+            setStartCustomTest(null);
+          }}
+          onStart={handleStartExam}
+        />
+      )}
     </div>
   );
 }

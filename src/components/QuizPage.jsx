@@ -119,8 +119,18 @@ function QuizPage() {
   const searchParams = new URLSearchParams(location.search);
   const isCustomQuiz = !isMockTest && searchParams.get("custom") === "1";
   const requestedCustomCount = Number(searchParams.get("count") || 0);
+  const questionOrder =
+    searchParams.get("order") === "random" ||
+    (isCustomQuiz && !searchParams.has("order"))
+      ? "random"
+      : "sequential";
 
-  const { user, loading: authLoading } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    sessionRowId,
+    deviceId,
+  } = useAuth();
 
   const [savingAttempt, setSavingAttempt] = useState(false);
 
@@ -145,7 +155,7 @@ function QuizPage() {
         isMockTest
           ? `mock-${mockId || "unknown"}`
           : `practice-${subjectId || "unknown"}-${setId || "unknown"}`
-      }-${isCustomQuiz ? `custom-${requestedCustomCount}` : "standard"}`,
+      }-${isCustomQuiz ? `custom-${requestedCustomCount}` : "standard"}-${questionOrder}`,
     [
       examId,
       trackId,
@@ -155,6 +165,7 @@ function QuizPage() {
       isMockTest,
       isCustomQuiz,
       requestedCustomCount,
+      questionOrder,
     ]
   );
 
@@ -292,6 +303,7 @@ function QuizPage() {
           sourceDurationMinutes,
           marksPerQuestion: selectedTest.marks_per_question,
           negativeMarks: selectedTest.negative_marks,
+          questionOrder,
         };
 
         /*
@@ -362,10 +374,15 @@ function QuizPage() {
               })
             );
 
-        const finalQuestions =
-          isCustomQuiz && customCount < formattedQuestions.length
-            ? shuffleArray(formattedQuestions).slice(0, customCount)
+        let orderedQuestions =
+          questionOrder === "random"
+            ? shuffleArray(formattedQuestions)
             : formattedQuestions;
+
+        const finalQuestions =
+          isCustomQuiz && customCount < orderedQuestions.length
+            ? orderedQuestions.slice(0, customCount)
+            : orderedQuestions;
 
         if (!cancelled) {
           const finalTest = {
@@ -433,6 +450,7 @@ function QuizPage() {
     user,
     navigate,
     activeQuizKey,
+    questionOrder,
   ]);
 
   /* =========================================================
@@ -582,11 +600,301 @@ function QuizPage() {
   }, [examId, trackId, subjectId, isMockTest]);
 
   /* =========================================================
+     SERVER-SIDE ACTIVE EXAM SESSION
+
+     Only one active exam is allowed for a user.
+     The database RPC is the source of truth.
+  ========================================================= */
+
+  const [examSessionReady, setExamSessionReady] = useState(false);
+  const [examSessionError, setExamSessionError] = useState("");
+
+  const activeExamSessionIdRef = useRef(null);
+  const examSessionKeyRef = useRef(null);
+  const examSessionStartingRef = useRef(false);
+
+  /*
+     End the server-side active exam session.
+     This is called after a successful submission and when the
+     user explicitly chooses to leave the quiz.
+  */
+  const endExamSession = useCallback(async () => {
+    const activeExamSessionId =
+      activeExamSessionIdRef.current;
+
+    if (!activeExamSessionId || !sessionRowId) {
+      return true;
+    }
+
+    const { data, error } = await supabase.rpc(
+      "end_exam_session",
+      {
+        p_active_exam_session_id:
+          activeExamSessionId,
+        p_session_row_id: sessionRowId,
+      }
+    );
+
+    if (error) {
+      console.error(
+        "Unable to end active exam session:",
+        error
+      );
+
+      return false;
+    }
+
+    activeExamSessionIdRef.current = null;
+    examSessionKeyRef.current = null;
+    setExamSessionReady(false);
+
+    return data !== false;
+  }, [sessionRowId]);
+
+  /*
+     Start/resume the server-side exam session.
+
+     Two browsers can be logged in at the same time, but only
+     one of them can own an active exam. The database RPC uses
+     an advisory lock, so simultaneous starts are race-safe.
+  */
+  useEffect(() => {
+    if (
+      authLoading ||
+      !user ||
+      !test?.id ||
+      !questions.length ||
+      !quizHydrated ||
+      !sessionRowId ||
+      !deviceId
+    ) {
+      return undefined;
+    }
+
+    const sessionKey = [
+      test.id,
+      sessionRowId,
+      deviceId,
+    ].join(":");
+
+    if (
+      examSessionKeyRef.current === sessionKey ||
+      examSessionStartingRef.current
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function startExamSession() {
+      examSessionStartingRef.current = true;
+      setExamSessionReady(false);
+      setExamSessionError("");
+
+      try {
+        const { data, error } = await supabase.rpc(
+          "start_exam_session",
+          {
+            p_test_id: test.id,
+            p_session_row_id: sessionRowId,
+            p_device_id: deviceId,
+          }
+        );
+
+        if (error) {
+          const errorMessage = [
+            error?.message,
+            error?.details,
+            error?.hint,
+            error?.code,
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          if (
+            errorMessage.includes(
+              "EXAM_ALREADY_ACTIVE"
+            )
+          ) {
+            throw new Error(
+              "EXAM_ALREADY_ACTIVE"
+            );
+          }
+
+          throw error;
+        }
+
+        let sessionData = data;
+
+        if (typeof sessionData === "string") {
+          try {
+            sessionData = JSON.parse(sessionData);
+          } catch {
+            // Keep original value.
+          }
+        }
+
+        const activeExamSessionId =
+          sessionData?.active_exam_session_id ||
+          sessionData?.id ||
+          (Array.isArray(sessionData)
+            ? sessionData[0]?.active_exam_session_id ||
+              sessionData[0]?.id
+            : null);
+
+        if (!activeExamSessionId) {
+          throw new Error(
+            "Unable to create the active exam session."
+          );
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        activeExamSessionIdRef.current =
+          activeExamSessionId;
+        examSessionKeyRef.current = sessionKey;
+
+        setExamSessionReady(true);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        console.error(
+          "Unable to start active exam session:",
+          error
+        );
+
+        if (
+          String(error?.message || "").includes(
+            "EXAM_ALREADY_ACTIVE"
+          )
+        ) {
+          setExamSessionError(
+            "This user already has an active exam in another browser or device. Please finish or leave that exam before starting another test."
+          );
+        } else {
+          setExamSessionError(
+            error?.message ||
+              "Unable to start the secure exam session. Please try again."
+          );
+        }
+
+        setExamSessionReady(false);
+      } finally {
+        if (!cancelled) {
+          examSessionStartingRef.current = false;
+        }
+      }
+    }
+
+    startExamSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    authLoading,
+    user,
+    test?.id,
+    questions.length,
+    quizHydrated,
+    sessionRowId,
+    deviceId,
+  ]);
+
+  /*
+     Heartbeat the active exam every minute.
+     If the server says the exam session is no longer active,
+     stop this quiz instead of allowing two browsers to continue.
+  */
+  useEffect(() => {
+    if (
+      !examSessionReady ||
+      !activeExamSessionIdRef.current ||
+      !sessionRowId
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const heartbeatExamSession = async () => {
+      const activeExamSessionId =
+        activeExamSessionIdRef.current;
+
+      if (!activeExamSessionId) {
+        return;
+      }
+
+      const { data, error } = await supabase.rpc(
+        "heartbeat_exam_session",
+        {
+          p_active_exam_session_id:
+            activeExamSessionId,
+          p_session_row_id: sessionRowId,
+        }
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      if (error) {
+        console.error(
+          "Active exam heartbeat failed:",
+          error
+        );
+        return;
+      }
+
+      if (data === false) {
+        activeExamSessionIdRef.current = null;
+        examSessionKeyRef.current = null;
+        setExamSessionReady(false);
+        setExamSessionError(
+          "Your active exam session is no longer valid. Please return to the test list and start again."
+        );
+
+        try {
+          sessionStorage.removeItem(activeQuizKey);
+        } catch (clearError) {
+          console.warn(
+            "Unable to clear inactive quiz state:",
+            clearError
+          );
+        }
+      }
+    };
+
+    const timer = setInterval(
+      heartbeatExamSession,
+      60 * 1000
+    );
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [
+    examSessionReady,
+    sessionRowId,
+    activeQuizKey,
+  ]);
+
+  /* =========================================================
      PERSISTENT EXAM TIMER + ACTIVE PROGRESS
   ========================================================= */
 
   useEffect(() => {
-    if (!test || !questions.length || !quizHydrated) {
+    if (
+      !test ||
+      !questions.length ||
+      !quizHydrated ||
+      !examSessionReady
+    ) {
       return;
     }
 
@@ -671,6 +979,7 @@ function QuizPage() {
     test,
     questions,
     quizHydrated,
+    examSessionReady,
     activeQuizKey,
     currentQuestionIndex,
     answers,
@@ -736,9 +1045,14 @@ function QuizPage() {
     setShowExitModal(false);
   }, []);
 
-  const handleLeaveQuiz = useCallback(() => {
+  const handleLeaveQuiz = useCallback(async () => {
     allowQuizExitRef.current = true;
     setShowExitModal(false);
+
+    /*
+       Release the server-side active exam lock before leaving.
+    */
+    await endExamSession();
 
     /*
        Delete the active in-progress snapshot so the quiz cannot resume
@@ -751,7 +1065,12 @@ function QuizPage() {
     }
 
     navigate(quizReturnPath, { replace: true });
-  }, [activeQuizKey, navigate, quizReturnPath]);
+  }, [
+    activeQuizKey,
+    endExamSession,
+    navigate,
+    quizReturnPath,
+  ]);
 
   /* =========================================================
      CURRENT QUESTION
@@ -1347,6 +1666,18 @@ function QuizPage() {
         console.warn("Unable to clear completed quiz state:", clearError);
       }
 
+      /*
+        Release the server-side active exam lock only after the
+        attempt and all answer rows have been saved successfully.
+      */
+      const examSessionEnded = await endExamSession();
+
+      if (!examSessionEnded) {
+        throw new Error(
+          "Your test was saved, but the active exam session could not be closed. Please refresh and try again."
+        );
+      }
+
       navigate(
         isMockTest
           ? `/exam/${examId}/${trackId}/mock-result/${mockId}?attemptId=${encodeURIComponent(attemptRow.id)}`
@@ -1460,6 +1791,55 @@ function QuizPage() {
 
     );
 
+  }
+
+
+  /* =========================================================
+     SECURE EXAM SESSION
+  ========================================================= */
+
+  if (test && questions.length > 0 && !examSessionReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F6F1E7] px-4">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg">
+          {examSessionError ? (
+            <>
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <X size={24} />
+              </div>
+
+              <h1 className="mt-5 text-xl font-black text-[#10233F]">
+                Unable to Start Test
+              </h1>
+
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                {examSessionError}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => navigate(quizReturnPath, { replace: true })}
+                className="mt-6 rounded-lg bg-[#087A55] px-5 py-2.5 text-sm font-black text-white transition hover:bg-[#006B4F]"
+              >
+                Go Back
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-[#087A55]/20 border-t-[#087A55]" />
+
+              <h1 className="mt-5 text-xl font-black text-[#10233F]">
+                Securing Your Test
+              </h1>
+
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                Checking your active exam session...
+              </p>
+            </>
+          )}
+        </div>
+      </div>
+    );
   }
 
 

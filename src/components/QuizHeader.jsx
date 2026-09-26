@@ -76,13 +76,12 @@ function QuizHeader({ test, timeRemaining, user }) {
           aria-label={`Time remaining ${formatTime(timeRemaining)}`}
         >
           <span
-            className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${
-              isCritical
+            className={`grid h-8 w-8 shrink-0 place-items-center rounded-xl ${isCritical
                 ? "bg-red-100 dark:bg-red-400/15"
                 : isWarning
                   ? "bg-[#F6C400]/15 dark:bg-[#FFD23F]/10"
                   : "bg-white/70 dark:bg-white/5"
-            }`}
+              }`}
           >
             <Clock3 size={17} strokeWidth={2.5} />
           </span>
@@ -99,8 +98,8 @@ function QuizHeader({ test, timeRemaining, user }) {
 
         {/* Authenticated User */}
         <div className="hidden items-center gap-3 border-l border-slate-200 pl-4 dark:border-[#243A55] sm:flex">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#EAF6FD] text-[#003B82] dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]">
-            <UserRound size={17} />
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#EAF6FD] text-[#003B82] dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]">
+            <UserRound size={19} />
           </div>
 
           <div className="max-w-[150px]">
