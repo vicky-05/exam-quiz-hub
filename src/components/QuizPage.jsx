@@ -586,6 +586,11 @@ function QuizPage() {
   const quizHistoryGuardAddedRef = useRef(false);
   const allowQuizExitRef = useRef(false);
 
+  // After a successful submission we first step back from the protected
+  // duplicate history entry, then replace the original quiz entry with
+  // the Result page. This prevents Browser Back from reopening the quiz.
+  const pendingResultNavigationRef = useRef(null);
+
   /*
      Use the natural parent route as the safe destination when the
      user explicitly chooses "Leave Test". This avoids depending on
@@ -1014,6 +1019,21 @@ function QuizPage() {
     }
 
     const handlePopState = () => {
+      /*
+         A successful submission intentionally goes back one history entry
+         to remove the protected duplicate. The original quiz entry is then
+         replaced with Result, so Back from Result goes to the test list.
+      */
+      if (pendingResultNavigationRef.current) {
+        const resultUrl = pendingResultNavigationRef.current;
+        pendingResultNavigationRef.current = null;
+
+        // Replace the original quiz history entry with Result.
+        // This creates no additional browser-history entry.
+        navigate(resultUrl, { replace: true });
+        return;
+      }
+
       if (allowQuizExitRef.current) {
         return;
       }
@@ -1678,11 +1698,23 @@ function QuizPage() {
         );
       }
 
-      navigate(
+      const resultUrl =
         isMockTest
           ? `/exam/${examId}/${trackId}/mock-result/${mockId}?attemptId=${encodeURIComponent(attemptRow.id)}`
-          : `/exam/${examId}/${trackId}/result/${subjectId}/${setId}?attemptId=${encodeURIComponent(attemptRow.id)}`
-      );
+          : `/exam/${examId}/${trackId}/result/${subjectId}/${setId}?attemptId=${encodeURIComponent(attemptRow.id)}`;
+
+      /*
+        The quiz currently has two browser-history entries: the original
+        quiz entry and the protected duplicate added by the Back guard.
+        Go back over the duplicate first. The popstate handler above then
+        replaces the original quiz entry with Result.
+
+        Result: Test List -> Result
+        Browser Back from Result therefore returns directly to Test List.
+      */
+      pendingResultNavigationRef.current = resultUrl;
+      allowQuizExitRef.current = true;
+      window.history.back();
 
     } catch (error) {
 

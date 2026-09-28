@@ -702,6 +702,24 @@ function StartExamModal({ test, onClose, onStart }) {
 
   if (!test) return null;
 
+  // Custom quizzes should show the number of questions the user selected,
+  // not the full size of the question bank.
+  const isCustomQuiz =
+    Number(test.customCount) > 0 &&
+    Number(test.customCount) < Number(test.totalQuestions);
+
+  const displayQuestionCount = isCustomQuiz
+    ? Number(test.customCount)
+    : Number(test.totalQuestions);
+
+  const displayDurationMinutes = isCustomQuiz
+    ? Math.ceil(
+        (Number(test.customCount) *
+          Number(test.durationMinutes || 0)) /
+          Math.max(Number(test.totalQuestions || 1), 1)
+      )
+    : Number(test.durationMinutes || 0);
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-end justify-center bg-[#001F4F]/65 p-0 backdrop-blur-sm sm:items-center sm:p-6"
@@ -743,7 +761,7 @@ function StartExamModal({ test, onClose, onStart }) {
                 Questions
               </p>
               <p className="mt-1 text-base font-black text-[#001F4F] dark:text-white">
-                {test.totalQuestions}
+                {displayQuestionCount}
               </p>
             </div>
             <div className="rounded-xl px-3 py-3 text-center">
@@ -751,7 +769,7 @@ function StartExamModal({ test, onClose, onStart }) {
                 Duration
               </p>
               <p className="mt-1 text-base font-black text-[#001F4F] dark:text-white">
-                {test.durationMinutes} min
+                {displayDurationMinutes} min
               </p>
             </div>
             <div className="rounded-xl px-3 py-3 text-center">
