@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  Bell,
   CheckCircle2,
   Eye,
   Monitor,
@@ -88,8 +89,76 @@ function PasswordInput({
   );
 }
 
+function NotificationToggle({
+  label,
+  description,
+  enabled,
+  loading,
+  onChange,
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 dark:border-[#243A55] dark:bg-[#07111F]">
+      <div className="min-w-0">
+        <p className="text-sm font-black text-[#10233F] dark:text-white">
+          {label}
+        </p>
+
+        {description ? (
+          <p className="mt-1 text-[11px] leading-5 text-slate-500 dark:text-[#8190A5]">
+            {description}
+          </p>
+        ) : null}
+      </div>
+
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-label={`${label}: ${enabled ? "On" : "Off"}`}
+        disabled={loading}
+        onClick={() => onChange(!enabled)}
+        className={`relative h-7 w-12 shrink-0 rounded-full transition ${
+          enabled
+            ? "bg-gradient-to-r from-[#003B82] to-[#009FE3]"
+            : "bg-slate-300 dark:bg-[#334A66]"
+        } ${
+          loading
+            ? "cursor-not-allowed opacity-60"
+            : ""
+        }`}
+      >
+        <span
+          className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-md transition ${
+            enabled ? "left-6" : "left-1"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
+function NotificationSectionTitle({ icon, children }) {
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      {icon}
+
+      <h3 className="text-xs font-black uppercase tracking-[0.15em] text-[#10233F] dark:text-white">
+        {children}
+      </h3>
+    </div>
+  );
+}
+
 function ProfilePage() {
-  const { user, profile, loading: authLoading, signOut, sessionRowId, deviceId } = useAuth();
+  const {
+    user,
+    profile,
+    loading: authLoading,
+    signOut,
+    sessionRowId,
+    deviceId,
+  } = useAuth();
+
   const navigate = useNavigate();
 
   const [displayName, setDisplayName] = useState("");
@@ -108,11 +177,30 @@ function ProfilePage() {
   const [passwordError, setPasswordError] = useState("");
 
   const [signingOut, setSigningOut] = useState(false);
+
   const [activeDevices, setActiveDevices] = useState([]);
   const [devicesLoading, setDevicesLoading] = useState(true);
   const [deviceActionId, setDeviceActionId] = useState("");
   const [deviceError, setDeviceError] = useState("");
   const [deviceMessage, setDeviceMessage] = useState("");
+
+  // ============================================================
+  // NOTIFICATION PREFERENCES
+  // ============================================================
+
+  const [notificationPreferences, setNotificationPreferences] =
+    useState(null);
+
+  const [
+    notificationPreferencesLoading,
+    setNotificationPreferencesLoading,
+  ] = useState(true);
+
+  const [notificationSaving, setNotificationSaving] = useState("");
+
+  const [notificationError, setNotificationError] = useState("");
+
+  const [notificationMessage, setNotificationMessage] = useState("");
 
   function getDeviceIcon(deviceType) {
     if (deviceType === "mobile") return <Smartphone size={19} />;
@@ -135,20 +223,43 @@ function ProfilePage() {
   function formatLastActive(value) {
     if (!value) return "—";
 
-    const diff = Math.max(0, Date.now() - new Date(value).getTime());
+    const diff = Math.max(
+      0,
+      Date.now() - new Date(value).getTime()
+    );
+
     const minutes = Math.floor(diff / 60000);
 
     if (minutes < 1) return "Just now";
-    if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+
+    if (minutes < 60) {
+      return `${minutes} minute${
+        minutes === 1 ? "" : "s"
+      } ago`;
+    }
 
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+
+    if (hours < 24) {
+      return `${hours} hour${
+        hours === 1 ? "" : "s"
+      } ago`;
+    }
 
     const days = Math.floor(hours / 24);
-    if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+
+    if (days < 30) {
+      return `${days} day${
+        days === 1 ? "" : "s"
+      } ago`;
+    }
 
     return formatDateTime(value);
   }
+
+  // ============================================================
+  // LOAD ACTIVE DEVICES
+  // ============================================================
 
   async function loadActiveDevices() {
     if (!user) return;
@@ -164,23 +275,170 @@ function ProfilePage() {
         )
         .eq("user_id", user.id)
         .is("revoked_at", null)
-        .order("last_active_at", { ascending: false });
+        .order("last_active_at", {
+          ascending: false,
+        });
 
       if (error) throw error;
 
       setActiveDevices(data || []);
     } catch (error) {
-      console.error("Failed to load active devices:", error);
-      setDeviceError("Unable to load active devices. Please try again.");
+      console.error(
+        "Failed to load active devices:",
+        error
+      );
+
+      setDeviceError(
+        "Unable to load active devices. Please try again."
+      );
     } finally {
       setDevicesLoading(false);
     }
   }
 
+  // ============================================================
+  // LOAD NOTIFICATION PREFERENCES
+  // ============================================================
+
+  async function loadNotificationPreferences() {
+    if (!user) return;
+
+    try {
+      setNotificationPreferencesLoading(true);
+      setNotificationError("");
+
+      const { data, error } = await supabase
+        .from("notification_preferences")
+        .select(`
+          test_completed,
+          daily_goal,
+          study_streak,
+          personal_best,
+          improvement,
+          accuracy_milestone,
+          weak_subject,
+          perfect_score,
+          question_milestone,
+          new_test,
+          recommended_test,
+          announcements
+        `)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (!data) {
+        const { data: created, error: createError } =
+          await supabase
+            .from("notification_preferences")
+            .insert({
+              user_id: user.id,
+            })
+            .select(`
+              test_completed,
+              daily_goal,
+              study_streak,
+              personal_best,
+              improvement,
+              accuracy_milestone,
+              weak_subject,
+              perfect_score,
+              question_milestone,
+              new_test,
+              recommended_test,
+              announcements
+            `)
+            .single();
+
+        if (createError) throw createError;
+
+        setNotificationPreferences(created);
+      } else {
+        setNotificationPreferences(data);
+      }
+    } catch (error) {
+      console.error(
+        "Failed to load notification preferences:",
+        error
+      );
+
+      setNotificationError(
+        error?.message ||
+          "Unable to load notification preferences."
+      );
+    } finally {
+      setNotificationPreferencesLoading(false);
+    }
+  }
+
+  // ============================================================
+  // UPDATE NOTIFICATION PREFERENCE
+  // ============================================================
+
+  async function handleNotificationPreferenceChange(
+    key,
+    value
+  ) {
+    if (!user || notificationSaving) return;
+
+    const previousPreferences =
+      notificationPreferences;
+
+    setNotificationError("");
+    setNotificationMessage("");
+
+    // Optimistic UI update
+    setNotificationPreferences((current) => ({
+      ...current,
+      [key]: value,
+    }));
+
+    setNotificationSaving(key);
+
+    try {
+      const { error } = await supabase
+        .from("notification_preferences")
+        .update({
+          [key]: value,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setNotificationMessage(
+        "Notification preferences updated."
+      );
+    } catch (error) {
+      console.error(
+        "Failed to update notification preference:",
+        error
+      );
+
+      // Roll back UI if database update fails
+      setNotificationPreferences(
+        previousPreferences
+      );
+
+      setNotificationError(
+        error?.message ||
+          "Unable to update notification preference."
+      );
+    } finally {
+      setNotificationSaving("");
+    }
+  }
+
+  // ============================================================
+  // INITIAL DATA LOAD
+  // ============================================================
+
   useEffect(() => {
     if (!user) return;
 
     loadActiveDevices();
+    loadNotificationPreferences();
 
     const refreshTimer = window.setInterval(() => {
       loadActiveDevices();
@@ -188,6 +446,10 @@ function ProfilePage() {
 
     return () => window.clearInterval(refreshTimer);
   }, [user?.id]);
+
+  // ============================================================
+  // DEVICE LOGOUT
+  // ============================================================
 
   async function handleDeviceLogout(device) {
     if (deviceActionId) return;
@@ -199,35 +461,56 @@ function ProfilePage() {
     try {
       if (device.id === sessionRowId) {
         await signOut();
-        navigate("/login", { replace: true });
+        navigate("/login", {
+          replace: true,
+        });
         return;
       }
 
-      const { data, error } = await supabase.rpc("revoke_user_session", {
-        p_session_row_id: device.id,
-      });
+      const { data, error } = await supabase.rpc(
+        "revoke_user_session",
+        {
+          p_session_row_id: device.id,
+        }
+      );
 
       if (error) throw error;
 
       if (data === false) {
-        throw new Error("Unable to revoke this device session.");
+        throw new Error(
+          "Unable to revoke this device session."
+        );
       }
 
       setActiveDevices((current) =>
-        current.filter((item) => item.id !== device.id)
+        current.filter(
+          (item) => item.id !== device.id
+        )
       );
+
       setDeviceMessage(
-        `${device.device_name || "Device"} has been signed out successfully.`
+        `${
+          device.device_name || "Device"
+        } has been signed out successfully.`
       );
     } catch (error) {
-      console.error("Device logout failed:", error);
+      console.error(
+        "Device logout failed:",
+        error
+      );
+
       setDeviceError(
-        error?.message || "Unable to sign out this device. Please try again."
+        error?.message ||
+          "Unable to sign out this device. Please try again."
       );
     } finally {
       setDeviceActionId("");
     }
   }
+
+  // ============================================================
+  // AUTH LOADING
+  // ============================================================
 
   if (authLoading) {
     return (
@@ -237,6 +520,7 @@ function ProfilePage() {
         <main className="grid min-h-[calc(100vh-78px)] place-items-center px-6">
           <div className="text-center">
             <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-[#009FE3]/20 border-t-[#009FE3] dark:border-[#19B8F2]/20 dark:border-t-[#19B8F2]" />
+
             <p className="mt-4 text-sm font-bold text-slate-500 dark:text-[#A8B4C5]">
               Loading your profile...
             </p>
@@ -263,50 +547,60 @@ function ProfilePage() {
     setDisplayName(fallbackName);
   }, [fallbackName]);
 
+  // ============================================================
+  // NAME UPDATE
+  // ============================================================
+
   async function handleNameChange(event) {
     event.preventDefault();
 
     setNameMessage("");
     setNameError("");
 
-    const trimmedName = displayName.trim();
+    const trimmedName =
+      displayName.trim();
 
     if (!trimmedName) {
-      setNameError("Please enter your name.");
+      setNameError(
+        "Please enter your name."
+      );
       return;
     }
 
     if (trimmedName.length < 2) {
-      setNameError("Name must contain at least 2 characters.");
+      setNameError(
+        "Name must contain at least 2 characters."
+      );
       return;
     }
 
     if (trimmedName.length > 80) {
-      setNameError("Name must be 80 characters or less.");
+      setNameError(
+        "Name must be 80 characters or less."
+      );
       return;
     }
 
     try {
       setNameLoading(true);
 
-      // Keep Supabase Auth metadata updated so Header and other auth-based
-      // components immediately use the new name.
-      const { error: authError } = await supabase.auth.updateUser({
-        data: {
-          full_name: trimmedName,
-        },
-      });
+      const { error: authError } =
+        await supabase.auth.updateUser({
+          data: {
+            full_name: trimmedName,
+          },
+        });
 
       if (authError) throw authError;
 
-      // Update the application's profile record through a secure RPC.
-      // The SQL function only permits changing the current user's name.
-      const { error: profileError } = await supabase.rpc(
-        "update_my_profile_name",
-        {
-          new_full_name: trimmedName,
-        }
-      );
+      const { error: profileError } =
+        await supabase.rpc(
+          "update_my_profile_name",
+          {
+            new_full_name:
+              trimmedName,
+          },
+        );
 
       if (profileError) {
         console.warn(
@@ -316,9 +610,16 @@ function ProfilePage() {
       }
 
       setDisplayName(trimmedName);
-      setNameMessage("Your name has been updated successfully.");
+
+      setNameMessage(
+        "Your name has been updated successfully."
+      );
     } catch (error) {
-      console.error("Name update failed:", error);
+      console.error(
+        "Name update failed:",
+        error
+      );
+
       setNameError(
         error?.message ||
           "Unable to update your name. Please try again."
@@ -328,42 +629,60 @@ function ProfilePage() {
     }
   }
 
-  async function handlePasswordChange(event) {
+  // ============================================================
+  // PASSWORD UPDATE
+  // ============================================================
+
+  async function handlePasswordChange(
+    event
+  ) {
     event.preventDefault();
 
     setPasswordMessage("");
     setPasswordError("");
 
     if (!newPassword || !confirmPassword) {
-      setPasswordError("Please enter and confirm your new password.");
+      setPasswordError(
+        "Please enter and confirm your new password."
+      );
       return;
     }
 
     if (newPassword.length < 6) {
-      setPasswordError("Password must contain at least 6 characters.");
+      setPasswordError(
+        "Password must contain at least 6 characters."
+      );
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setPasswordError("Passwords do not match.");
+      setPasswordError(
+        "Passwords do not match."
+      );
       return;
     }
 
     try {
       setPasswordLoading(true);
 
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      });
+      const { error } =
+        await supabase.auth.updateUser({
+          password: newPassword,
+        });
 
       if (error) throw error;
 
       setNewPassword("");
       setConfirmPassword("");
 
-      setPasswordMessage("Your password has been updated successfully.");
+      setPasswordMessage(
+        "Your password has been updated successfully."
+      );
     } catch (error) {
-      console.error("Password update failed:", error);
+      console.error(
+        "Password update failed:",
+        error
+      );
 
       setPasswordError(
         error?.message ||
@@ -373,6 +692,10 @@ function ProfilePage() {
       setPasswordLoading(false);
     }
   }
+
+  // ============================================================
+  // SIGN OUT
+  // ============================================================
 
   async function handleSignOut() {
     if (signingOut) return;
@@ -386,28 +709,42 @@ function ProfilePage() {
         replace: true,
       });
     } catch (error) {
-      console.error("Sign out failed:", error);
+      console.error(
+        "Sign out failed:",
+        error
+      );
 
-      setPasswordError(error?.message || "Unable to sign out.");
+      setPasswordError(
+        error?.message ||
+          "Unable to sign out."
+      );
     } finally {
       setSigningOut(false);
     }
   }
+
+  // ============================================================
+  // PAGE
+  // ============================================================
 
   return (
     <div className="min-h-screen bg-[#F7F9FC] text-[#10233F] dark:bg-[#07111F] dark:text-white">
       <Header />
 
       <main>
-        {/* =========================================================
+
+        {/* =======================================================
             PROFILE HERO
-        ========================================================== */}
+        ======================================================== */}
+
         <section className="relative overflow-hidden border-b border-[#E2E8F0] bg-gradient-to-br from-[#EEF7FF] via-white to-[#FFF9E8] dark:border-[#243A55] dark:from-[#0D1B2E] dark:via-[#07111F] dark:to-[#10243B]">
           <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#009FE3]/10 blur-3xl dark:bg-[#19B8F2]/8" />
+
           <div className="pointer-events-none absolute -right-24 -top-16 h-80 w-80 rounded-full bg-[#F6C400]/12 blur-3xl dark:bg-[#FFD23F]/7" />
 
           <div className="relative mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-12 lg:py-10">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full border border-[#009FE3]/20 bg-white px-3.5 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#145AA8] shadow-sm dark:border-[#19B8F2]/20 dark:bg-[#0D1B2E] dark:text-[#19B8F2]">
                   <ShieldCheck size={14} />
@@ -438,19 +775,28 @@ function ProfilePage() {
           </div>
         </section>
 
-        {/* =========================================================
+        {/* =======================================================
             CONTENT
-        ========================================================== */}
+        ======================================================== */}
+
         <section className="mx-auto max-w-7xl px-5 py-7 sm:px-8 lg:px-12 lg:py-9">
+
           <div className="grid gap-6 lg:grid-cols-[0.88fr_1.12fr]">
-            {/* ACCOUNT INFORMATION */}
+
+            {/* ===================================================
+                ACCOUNT INFORMATION
+            ==================================================== */}
+
             <section className="rounded-[24px] border border-[#E2E8F0] bg-white p-6 shadow-[0_12px_35px_rgba(16,35,63,0.05)] sm:p-7 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:shadow-[0_16px_45px_rgba(0,0,0,0.18)]">
+
               <div className="flex items-center gap-4">
+
                 <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#003B82] to-[#009FE3] text-white shadow-lg shadow-[#009FE3]/15">
                   <UserRound size={24} />
                 </div>
 
                 <div className="min-w-0">
+
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#F0A000] dark:text-[#FFD23F]">
                     Profile
                   </p>
@@ -458,13 +804,16 @@ function ProfilePage() {
                   <h2 className="mt-1 truncate text-xl font-black text-[#10233F] dark:text-white">
                     {displayName}
                   </h2>
+
                 </div>
+
               </div>
 
               <form
                 onSubmit={handleNameChange}
                 className="mt-5"
               >
+
                 <label
                   htmlFor="profile-name"
                   className="text-xs font-black text-[#10233F] dark:text-white"
@@ -473,12 +822,15 @@ function ProfilePage() {
                 </label>
 
                 <div className="mt-2 flex gap-2">
+
                   <input
                     id="profile-name"
                     type="text"
                     value={displayName}
                     onChange={(event) => {
-                      setDisplayName(event.target.value);
+                      setDisplayName(
+                        event.target.value
+                      );
                       setNameMessage("");
                       setNameError("");
                     }}
@@ -492,8 +844,11 @@ function ProfilePage() {
                     disabled={nameLoading}
                     className="shrink-0 rounded-xl bg-gradient-to-r from-[#003B82] to-[#009FE3] px-4 py-3 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,96,180,0.16)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {nameLoading ? "Saving..." : "Save"}
+                    {nameLoading
+                      ? "Saving..."
+                      : "Save"}
                   </button>
+
                 </div>
 
                 <p className="mt-2 text-[10px] font-medium text-slate-400 dark:text-[#8190A5]">
@@ -520,6 +875,7 @@ function ProfilePage() {
                 ) : null}
 
                 <div className="mt-4">
+
                   <InfoRow
                     icon={<Mail size={18} />}
                     label="Email"
@@ -537,17 +893,22 @@ function ProfilePage() {
                     label="Member Since"
                     value={formatDate(createdAt)}
                   />
+
                 </div>
+
               </form>
 
               <div className="mt-5 rounded-2xl border border-[#009FE3]/10 bg-[#EEF8FF] p-4 dark:border-[#19B8F2]/10 dark:bg-[#10243B]">
+
                 <div className="flex gap-3">
+
                   <ShieldCheck
                     size={19}
                     className="mt-0.5 shrink-0 text-[#009FE3] dark:text-[#19B8F2]"
                   />
 
                   <div>
+
                     <p className="text-sm font-black text-[#10233F] dark:text-white">
                       Your account is protected
                     </p>
@@ -556,19 +917,29 @@ function ProfilePage() {
                       Your authentication is securely managed through Supabase
                       Auth.
                     </p>
+
                   </div>
+
                 </div>
+
               </div>
+
             </section>
 
-            {/* CHANGE PASSWORD */}
+            {/* ===================================================
+                CHANGE PASSWORD
+            ==================================================== */}
+
             <section className="rounded-[24px] border border-[#E2E8F0] bg-white p-6 shadow-[0_12px_35px_rgba(16,35,63,0.05)] sm:p-7 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:shadow-[0_16px_45px_rgba(0,0,0,0.18)]">
+
               <div className="flex items-center gap-4">
+
                 <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#003B82] text-white shadow-lg shadow-[#003B82]/15 dark:bg-[#145AA8]">
                   <LockKeyhole size={21} />
                 </div>
 
                 <div>
+
                   <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#F0A000] dark:text-[#FFD23F]">
                     Security
                   </p>
@@ -576,14 +947,20 @@ function ProfilePage() {
                   <h2 className="mt-1 text-xl font-black text-[#10233F] dark:text-white">
                     Change Password
                   </h2>
+
                 </div>
+
               </div>
 
               <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-[#A8B4C5]">
                 Choose a strong password that you do not use on other websites.
               </p>
 
-              <form onSubmit={handlePasswordChange} className="mt-6 space-y-4">
+              <form
+                onSubmit={handlePasswordChange}
+                className="mt-6 space-y-4"
+              >
+
                 <PasswordInput
                   label="New Password"
                   value={newPassword}
@@ -591,7 +968,9 @@ function ProfilePage() {
                   placeholder="Enter new password"
                   show={showNewPassword}
                   onToggle={() =>
-                    setShowNewPassword((value) => !value)
+                    setShowNewPassword(
+                      (value) => !value
+                    )
                   }
                 />
 
@@ -602,7 +981,9 @@ function ProfilePage() {
                   placeholder="Confirm new password"
                   show={showConfirmPassword}
                   onToggle={() =>
-                    setShowConfirmPassword((value) => !value)
+                    setShowConfirmPassword(
+                      (value) => !value
+                    )
                   }
                 />
 
@@ -636,14 +1017,23 @@ function ProfilePage() {
                     ? "Updating Password..."
                     : "Update Password"}
                 </button>
+
               </form>
+
             </section>
+
           </div>
 
-          {/* ACTIVE DEVICES */}
+          {/* =====================================================
+              ACTIVE DEVICES
+          ====================================================== */}
+
           <section className="mt-6 rounded-[24px] border border-[#E2E8F0] bg-white p-6 shadow-[0_12px_35px_rgba(16,35,63,0.05)] sm:p-7 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:shadow-[0_16px_45px_rgba(0,0,0,0.18)]">
+
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
               <div>
+
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#F0A000] dark:text-[#FFD23F]">
                   Security
                 </p>
@@ -656,6 +1046,7 @@ function ProfilePage() {
                   View where your account is currently signed in and sign out
                   devices you no longer use.
                 </p>
+
               </div>
 
               <button
@@ -666,10 +1057,16 @@ function ProfilePage() {
               >
                 <RefreshCw
                   size={15}
-                  className={devicesLoading ? "animate-spin" : ""}
+                  className={
+                    devicesLoading
+                      ? "animate-spin"
+                      : ""
+                  }
                 />
+
                 Refresh
               </button>
+
             </div>
 
             {deviceError ? (
@@ -692,6 +1089,7 @@ function ProfilePage() {
             ) : null}
 
             <div className="mt-5 space-y-3">
+
               {devicesLoading ? (
                 <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-6 text-center text-sm font-semibold text-slate-500 dark:border-[#243A55] dark:bg-[#07111F] dark:text-[#A8B4C5]">
                   Loading active devices...
@@ -702,22 +1100,30 @@ function ProfilePage() {
                 </div>
               ) : (
                 activeDevices.map((device) => {
+
                   const isCurrentDevice =
                     device.id === sessionRowId ||
-                    (deviceId && device.device_id === deviceId);
+                    (deviceId &&
+                      device.device_id === deviceId);
 
                   return (
                     <div
                       key={device.id}
                       className="flex flex-col gap-4 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 sm:flex-row sm:items-center sm:justify-between dark:border-[#243A55] dark:bg-[#07111F]"
                     >
+
                       <div className="flex min-w-0 items-start gap-3">
+
                         <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#009FE3]/10 text-[#009FE3] dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]">
-                          {getDeviceIcon(device.device_type)}
+                          {getDeviceIcon(
+                            device.device_type
+                          )}
                         </div>
 
                         <div className="min-w-0">
+
                           <div className="flex flex-wrap items-center gap-2">
+
                             <h3 className="truncate text-sm font-black text-[#10233F] dark:text-white">
                               {device.device_name ||
                                 device.browser ||
@@ -729,54 +1135,466 @@ function ProfilePage() {
                                 This device
                               </span>
                             ) : null}
+
                           </div>
 
                           <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-[#A8B4C5]">
                             {device.device_type
-                              ? device.device_type.charAt(0).toUpperCase() +
+                              ? device.device_type
+                                  .charAt(0)
+                                  .toUpperCase() +
                                 device.device_type.slice(1)
                               : "Device"}
-                            {device.browser ? ` • ${device.browser}` : ""}
+
+                            {device.browser
+                              ? ` • ${device.browser}`
+                              : ""}
+
                             {device.operating_system
                               ? ` • ${device.operating_system}`
                               : ""}
                           </p>
 
                           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-semibold text-slate-400 dark:text-[#8190A5]">
+
                             <span className="inline-flex items-center gap-1.5">
                               <Clock3 size={12} />
-                              Last active: {formatLastActive(device.last_active_at)}
+                              Last active:{" "}
+                              {formatLastActive(
+                                device.last_active_at
+                              )}
                             </span>
 
                             <span>
-                              Signed in: {formatDateTime(device.created_at)}
+                              Signed in:{" "}
+                              {formatDateTime(
+                                device.created_at
+                              )}
                             </span>
+
                           </div>
+
                         </div>
+
                       </div>
 
                       <button
                         type="button"
-                        onClick={() => handleDeviceLogout(device)}
-                        disabled={deviceActionId === device.id}
+                        onClick={() =>
+                          handleDeviceLogout(device)
+                        }
+                        disabled={
+                          deviceActionId === device.id
+                        }
                         className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-xs font-black text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-900/60 dark:bg-[#0D1B2E] dark:hover:bg-red-950/30"
                       >
                         <LogOut size={15} />
+
                         {deviceActionId === device.id
                           ? "Signing out..."
                           : "Logout"}
                       </button>
+
                     </div>
                   );
                 })
               )}
+
             </div>
+
           </section>
 
-          {/* ACCOUNT ACTIONS */}
+          {/* =====================================================
+              NOTIFICATION PREFERENCES
+          ====================================================== */}
+
           <section className="mt-6 rounded-[24px] border border-[#E2E8F0] bg-white p-6 shadow-[0_12px_35px_rgba(16,35,63,0.05)] sm:p-7 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:shadow-[0_16px_45px_rgba(0,0,0,0.18)]">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+            <div className="flex items-center gap-4">
+
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#003B82] to-[#009FE3] text-white shadow-lg shadow-[#009FE3]/15">
+                <Bell size={21} />
+              </div>
+
               <div>
+
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#F0A000] dark:text-[#FFD23F]">
+                  Notifications
+                </p>
+
+                <h2 className="mt-1 text-xl font-black text-[#10233F] dark:text-white">
+                  Notification Preferences
+                </h2>
+
+              </div>
+
+            </div>
+
+            <p className="mt-4 text-sm leading-6 text-slate-500 dark:text-[#A8B4C5]">
+              Choose which study, performance and learning notifications
+              you want to receive.
+            </p>
+
+            {notificationError ? (
+              <div
+                role="alert"
+                className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+              >
+                {notificationError}
+              </div>
+            ) : null}
+
+            {notificationMessage ? (
+              <div
+                role="status"
+                className="mt-5 flex items-center gap-2 rounded-xl border border-[#009FE3]/20 bg-[#009FE3]/5 px-4 py-3 text-xs font-semibold text-[#0068C9] dark:border-[#19B8F2]/20 dark:bg-[#19B8F2]/5 dark:text-[#19B8F2]"
+              >
+                <CheckCircle2 size={17} />
+                {notificationMessage}
+              </div>
+            ) : null}
+
+            {notificationPreferencesLoading ? (
+              <div className="mt-6 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-7 text-center text-sm font-semibold text-slate-500 dark:border-[#243A55] dark:bg-[#07111F] dark:text-[#A8B4C5]">
+                Loading notification preferences...
+              </div>
+            ) : notificationPreferences ? (
+              <div className="mt-6 space-y-7">
+
+                {/* =================================================
+                    STUDY & TESTS
+                ================================================== */}
+
+                <div>
+
+                  <NotificationSectionTitle
+                    icon={
+                      <Bell
+                        size={15}
+                        className="text-[#009FE3] dark:text-[#19B8F2]"
+                      />
+                    }
+                  >
+                    Study & Tests
+                  </NotificationSectionTitle>
+
+                  <div className="space-y-3">
+
+                    <NotificationToggle
+                      label="Test Completed"
+                      description="Get notified whenever you complete a test."
+                      enabled={
+                        notificationPreferences.test_completed
+                      }
+                      loading={
+                        notificationSaving ===
+                        "test_completed"
+                      }
+                      onChange={(value) =>
+                        handleNotificationPreferenceChange(
+                          "test_completed",
+                          value
+                        )
+                      }
+                    />
+
+                    <NotificationToggle
+                      label="Daily Goal"
+                      description="Receive notifications about your daily study goal."
+                      enabled={
+                        notificationPreferences.daily_goal
+                      }
+                      loading={
+                        notificationSaving ===
+                        "daily_goal"
+                      }
+                      onChange={(value) =>
+                        handleNotificationPreferenceChange(
+                          "daily_goal",
+                          value
+                        )
+                      }
+                    />
+
+                    <NotificationToggle
+                      label="Study Streak"
+                      description="Get notifications about your study streak."
+                      enabled={
+                        notificationPreferences.study_streak
+                      }
+                      loading={
+                        notificationSaving ===
+                        "study_streak"
+                      }
+                      onChange={(value) =>
+                        handleNotificationPreferenceChange(
+                          "study_streak",
+                          value
+                        )
+                      }
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* =================================================
+                    PERFORMANCE
+                ================================================== */}
+
+                <div>
+
+                  <NotificationSectionTitle
+                    icon={
+                      <span className="text-base">
+                        📈
+                      </span>
+                    }
+                  >
+                    Performance
+                  </NotificationSectionTitle>
+
+                  <div className="space-y-3">
+
+                    <NotificationToggle
+                      label="Personal Best"
+                      description="Know when you achieve a new personal best."
+                      enabled={
+                        notificationPreferences.personal_best
+                      }
+                      loading={
+                        notificationSaving ===
+                        "personal_best"
+                      }
+                      onChange={(value) =>
+                        handleNotificationPreferenceChange(
+                          "personal_best",
+                          value
+                        )
+                      }
+                    />
+
+                    <NotificationToggle
+                      label="Improvement"
+                      description="Get notified when your performance improves."
+                      enabled={
+                        notificationPreferences.improvement
+                      }
+                      loading={
+                        notificationSaving ===
+                        "improvement"
+                      }
+                      onChange={(value) =>
+                        handleNotificationPreferenceChange(
+                          "improvement",
+                          value
+                        )
+                      }
+                    />
+
+                    <NotificationToggle
+                      label="Accuracy Milestones"
+                      description="Receive notifications for strong accuracy."
+                      enabled={
+                        notificationPreferences.accuracy_milestone
+                      }
+                      loading={
+                        notificationSaving ===
+                        "accuracy_milestone"
+                      }
+                      onChange={(value) =>
+                        handleNotificationPreferenceChange(
+                          "accuracy_milestone",
+                          value
+                        )
+                      }
+                    />
+
+                    <NotificationToggle
+                      label="Weak Subject"
+                      description="Get notified when a subject needs more revision."
+                      enabled={
+                        notificationPreferences.weak_subject
+                      }
+                      loading={
+                        notificationSaving ===
+                        "weak_subject"
+                      }
+                      onChange={(value) =>
+                        handleNotificationPreferenceChange(
+                          "weak_subject",
+                          value
+                        )
+                      }
+                    />
+
+                    <NotificationToggle
+                      label="Perfect Score"
+                      description="Celebrate when you achieve full marks."
+                      enabled={
+                        notificationPreferences.perfect_score
+                      }
+                      loading={
+                        notificationSaving ===
+                        "perfect_score"
+                      }
+                      onChange={(value) =>
+                        handleNotificationPreferenceChange(
+                          "perfect_score",
+                          value
+                        )
+                      }
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* =================================================
+                    ACHIEVEMENTS
+                ================================================== */}
+
+                <div>
+
+                  <NotificationSectionTitle
+                    icon={
+                      <span className="text-base">
+                        🏆
+                      </span>
+                    }
+                  >
+                    Achievements
+                  </NotificationSectionTitle>
+
+                  <NotificationToggle
+                    label="Question Milestones"
+                    description="Get notified when you reach question-answering milestones."
+                    enabled={
+                      notificationPreferences.question_milestone
+                    }
+                    loading={
+                      notificationSaving ===
+                      "question_milestone"
+                    }
+                    onChange={(value) =>
+                      handleNotificationPreferenceChange(
+                        "question_milestone",
+                        value
+                      )
+                    }
+                  />
+
+                </div>
+
+                {/* =================================================
+                    LEARNING
+                ================================================== */}
+
+                <div>
+
+                  <NotificationSectionTitle
+                    icon={
+                      <span className="text-base">
+                        📚
+                      </span>
+                    }
+                  >
+                    Learning
+                  </NotificationSectionTitle>
+
+                  <div className="space-y-3">
+
+                    <NotificationToggle
+                      label="New Test"
+                      description="Get notified when a new test becomes available."
+                      enabled={
+                        notificationPreferences.new_test
+                      }
+                      loading={
+                        notificationSaving ===
+                        "new_test"
+                      }
+                      onChange={(value) =>
+                        handleNotificationPreferenceChange(
+                          "new_test",
+                          value
+                        )
+                      }
+                    />
+
+                    <NotificationToggle
+                      label="Recommended Test"
+                      description="Receive test recommendations based on your performance."
+                      enabled={
+                        notificationPreferences.recommended_test
+                      }
+                      loading={
+                        notificationSaving ===
+                        "recommended_test"
+                      }
+                      onChange={(value) =>
+                        handleNotificationPreferenceChange(
+                          "recommended_test",
+                          value
+                        )
+                      }
+                    />
+
+                  </div>
+
+                </div>
+
+                {/* =================================================
+                    ANNOUNCEMENTS
+                ================================================== */}
+
+                <div>
+
+                  <NotificationSectionTitle
+                    icon={
+                      <span className="text-base">
+                        📢
+                      </span>
+                    }
+                  >
+                    Announcements
+                  </NotificationSectionTitle>
+
+                  <NotificationToggle
+                    label="Announcements"
+                    description="Receive important announcements from Exam Quiz Hub."
+                    enabled={
+                      notificationPreferences.announcements
+                    }
+                    loading={
+                      notificationSaving ===
+                      "announcements"
+                    }
+                    onChange={(value) =>
+                      handleNotificationPreferenceChange(
+                        "announcements",
+                        value
+                      )
+                    }
+                  />
+
+                </div>
+
+              </div>
+            ) : null}
+
+          </section>
+
+          {/* =====================================================
+              ACCOUNT ACTIONS
+          ====================================================== */}
+
+          <section className="mt-6 rounded-[24px] border border-[#E2E8F0] bg-white p-6 shadow-[0_12px_35px_rgba(16,35,63,0.05)] sm:p-7 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:shadow-[0_16px_45px_rgba(0,0,0,0.18)]">
+
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+              <div>
+
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#F0A000] dark:text-[#FFD23F]">
                   Account Actions
                 </p>
@@ -788,6 +1606,7 @@ function ProfilePage() {
                 <p className="mt-1 text-sm text-slate-500 dark:text-[#A8B4C5]">
                   Sign out from this device when you are finished.
                 </p>
+
               </div>
 
               <button
@@ -798,11 +1617,17 @@ function ProfilePage() {
               >
                 <LogOut size={17} />
 
-                {signingOut ? "Signing out..." : "Sign Out"}
+                {signingOut
+                  ? "Signing out..."
+                  : "Sign Out"}
               </button>
+
             </div>
+
           </section>
+
         </section>
+
       </main>
     </div>
   );

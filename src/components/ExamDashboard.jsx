@@ -148,15 +148,15 @@ function Breadcrumb({ exam, track }) {
 
 function StatPill({ icon: Icon, label, value }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-[#243A55] dark:bg-[#0D1B2E]">
+    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-[#243A55] dark:bg-[#0D1B2E]">
       <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#EAF6FD] text-[#003B82] dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]">
         <Icon size={17} />
       </span>
-      <div>
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
           {label}
         </p>
-        <p className="mt-0.5 text-sm font-black text-[#001F4F] dark:text-white">
+        <p className="mt-0.5 truncate text-sm font-black text-[#001F4F] dark:text-white">
           {value}
         </p>
       </div>
@@ -184,7 +184,7 @@ function LibraryRow({ label, value }) {
 
 function ExamSelector({ exam }) {
   return (
-    <main className="min-h-[calc(100vh-78px)] bg-[#F7F9FC] dark:bg-[#07111F]">
+    <main className="min-h-[calc(100vh-78px)] min-w-0 overflow-x-hidden bg-[#F7F9FC] pb-24 dark:bg-[#07111F] lg:pb-0">
       <section className="relative overflow-hidden border-b border-slate-200 bg-white dark:border-[#243A55] dark:bg-[#07111F]">
         <div className="absolute -right-32 -top-40 h-[32rem] w-[32rem] rounded-full bg-[#009FE3]/10 blur-3xl" />
         <div className="absolute -bottom-32 -left-24 h-72 w-72 rounded-full bg-[#F6C400]/10 blur-3xl" />
@@ -311,7 +311,7 @@ function ExamSelector({ exam }) {
                         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#009FE3]">
                           Examination path
                         </p>
-                        <h3 className="mt-1 text-xl font-black text-[#001F4F] dark:text-white sm:text-2xl">
+                        <h3 className="mt-1 break-words text-xl font-black leading-tight text-[#001F4F] dark:text-white sm:text-2xl">
                           {track.name}
                         </h3>
                       </div>
@@ -371,7 +371,7 @@ function ExamSelector({ exam }) {
                     </span>
                   </div>
 
-                  <h3 className="mt-6 text-lg font-black leading-6 text-[#001F4F] dark:text-white">
+                  <h3 className="mt-6 break-words text-lg font-black leading-6 text-[#001F4F] dark:text-white">
                     {mock.title}
                   </h3>
 
@@ -437,7 +437,7 @@ function TrackDashboard({ exam, track }) {
   }, [track.id]);
 
   return (
-    <main className="min-h-[calc(100vh-78px)] bg-[#F7F9FC] dark:bg-[#07111F]">
+    <main className="min-h-[calc(100vh-78px)] min-w-0 overflow-x-hidden bg-[#F7F9FC] pb-24 dark:bg-[#07111F] lg:pb-0">
       <section className="relative overflow-hidden bg-[#001F4F] dark:bg-[#07111F]">
         <div className="absolute right-[-8rem] top-[-10rem] h-[30rem] w-[30rem] rounded-full bg-[#009FE3]/20 blur-3xl" />
         <div className="absolute bottom-[-10rem] left-[-6rem] h-[25rem] w-[25rem] rounded-full bg-[#F6C400]/10 blur-3xl" />
@@ -454,12 +454,12 @@ function TrackDashboard({ exam, track }) {
                 {isAao ? "TNPSC · AAO" : exam.categories}
               </div>
 
-              <h1 className="mt-5 max-w-4xl text-4xl font-black leading-[1.03] tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl">
+              <h1 className="mt-5 max-w-4xl break-words text-4xl font-black leading-[1.03] tracking-[-0.04em] text-white sm:text-5xl lg:text-6xl">
                 {track.name}
                 <span className="block text-[#19B8F2]">Preparation Desk</span>
               </h1>
 
-              <p className="mt-5 max-w-2xl text-base leading-7 text-white/65 sm:text-lg">
+              <p className="mt-5 max-w-2xl break-words text-base leading-7 text-white/65 sm:text-lg">
                 {track.description}{" "}
                 {isAao
                   ? "Choose your specialized subject and begin your preparation."
@@ -584,7 +584,7 @@ function TrackDashboard({ exam, track }) {
                   </span>
                 </div>
 
-                <h3 className="relative mt-6 text-xl font-black text-[#001F4F] dark:text-white">
+                <h3 className="relative mt-6 break-words text-xl font-black leading-tight text-[#001F4F] dark:text-white">
                   {name}
                 </h3>
 

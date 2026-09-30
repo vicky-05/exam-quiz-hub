@@ -1,5 +1,7 @@
 import {
   BookOpen,
+  Bell,
+  BellRing,
   ChevronDown,
   History,
   LayoutDashboard,
@@ -14,6 +16,7 @@ import {
   ClipboardCheck,
   House,
   BarChart3,
+  CircleUserRound,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -21,6 +24,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "../assets/exam-quiz-hub-logo.png";
 import darkLogo from "../assets/exam-quiz-hub-logo-dark.png";
 import { useAuth } from "../context/AuthContext";
+import { supabase } from "../services/supabase";
 import {
   getExams,
   getTracks,
@@ -41,6 +45,10 @@ function Header() {
   const [searchValue, setSearchValue] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [mobileAlertOpen, setMobileAlertOpen] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(false);
 
   const [darkMode, setDarkMode] = useState(() => {
     try {
@@ -57,6 +65,7 @@ function Header() {
 
   const examRef = useRef(null);
   const accountRef = useRef(null);
+  const notificationRef = useRef(null);
   const searchInputRef = useRef(null);
 
   const displayName =
@@ -67,6 +76,116 @@ function Header() {
 
   const firstName = displayName.split(" ")[0];
   const userInitial = firstName?.charAt(0)?.toUpperCase() || "S";
+
+  /* =========================================================
+     NOTIFICATIONS
+  ========================================================= */
+
+  useEffect(() => {
+    if (!user?.id) {
+      setNotifications([]);
+      setNotificationOpen(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadNotifications() {
+      try {
+        setNotificationLoading(true);
+
+        const { data, error } = await supabase
+          .from("notifications")
+          .select(`
+            id,
+            category,
+            type,
+            title,
+            message,
+            icon,
+            link,
+            is_read,
+            metadata,
+            created_at
+          `)
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(30);
+
+        if (error) throw error;
+
+        if (!cancelled) {
+          setNotifications(data || []);
+        }
+      } catch (error) {
+        console.error("Unable to load notifications:", error);
+
+        if (!cancelled) {
+          setNotifications([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setNotificationLoading(false);
+        }
+      }
+    }
+
+    loadNotifications();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`user-notifications-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newNotification = payload.new;
+
+          setNotifications((current) => {
+            if (current.some((item) => item.id === newNotification.id)) {
+              return current;
+            }
+
+            return [newNotification, ...current].slice(0, 30);
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          setNotifications((current) =>
+            current.map((notification) =>
+              notification.id === payload.new.id
+                ? payload.new
+                : notification
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   /* =========================================================
      LOAD AVAILABLE EXAMS
@@ -159,6 +278,13 @@ function Header() {
       ) {
         setAccountOpen(false);
       }
+
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
+        setNotificationOpen(false);
+      }
     }
 
     document.addEventListener("mousedown", handleOutsideClick);
@@ -176,6 +302,8 @@ function Header() {
     setMobileOpen(false);
     setExamOpen(false);
     setAccountOpen(false);
+    setNotificationOpen(false);
+    setMobileAlertOpen(false);
     setSearchOpen(false);
     setSearchResults([]);
   }, [location.pathname]);
@@ -520,6 +648,71 @@ function Header() {
   }
 
   /* =========================================================
+     NOTIFICATION ACTIONS
+  ========================================================= */
+
+  async function markNotificationAsRead(notification) {
+    if (!user?.id || !notification?.id || notification.is_read) return;
+
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("id", notification.id)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === notification.id
+            ? { ...item, is_read: true }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error("Unable to mark notification as read:", error);
+    }
+  }
+
+  async function markAllNotificationsAsRead() {
+    if (!user?.id || unreadNotificationCount === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ is_read: true })
+        .eq("user_id", user.id)
+        .eq("is_read", false);
+
+      if (error) throw error;
+
+      setNotifications((current) =>
+        current.map((notification) => ({
+          ...notification,
+          is_read: true,
+        }))
+      );
+    } catch (error) {
+      console.error("Unable to mark notifications as read:", error);
+    }
+  }
+
+  function openNotification(notification) {
+    markNotificationAsRead(notification);
+    setNotificationOpen(false);
+    setMobileOpen(false);
+
+    if (notification?.link) {
+      navigate(notification.link);
+    }
+  }
+
+  const unreadNotificationCount = notifications.filter(
+    (notification) => !notification.is_read
+  ).length;
+
+  /* =========================================================
      ACCOUNT
   ========================================================= */
 
@@ -566,6 +759,18 @@ function Header() {
       icon: BarChart3,
     },
   ];
+
+  function handleMobileExamSelect(examId) {
+    if (!examId) return;
+
+    setExamOpen(false);
+    setMobileOpen(false);
+    setAccountOpen(false);
+
+    window.location.assign(
+      `/exam/${encodeURIComponent(String(examId))}`
+    );
+  }
 
   function navigateHash(hash) {
     setMobileOpen(false);
@@ -666,10 +871,14 @@ function Header() {
 
                     {availableExams.length > 0 ? (
                       availableExams.map((exam, index) => (
-                        <Link
+                        <a
                           key={exam.id}
-                          to={`/exam/${exam.id}`}
-                          onClick={() => setExamOpen(false)}
+                          href={`/exam/${encodeURIComponent(String(exam.id))}`}
+                          onClick={() => {
+                            setExamOpen(false);
+                            setAccountOpen(false);
+                            setMobileOpen(false);
+                          }}
                           className="group flex items-center gap-3 rounded-xl p-3 transition hover:bg-[#F2F7FD] dark:hover:bg-white/5"
                         >
                           <div
@@ -696,7 +905,7 @@ function Header() {
                           </div>
 
                           <ArrowIcon />
-                        </Link>
+                        </a>
                       ))
                     ) : (
                       <div className="px-3 py-4 text-center text-xs font-bold text-slate-400 dark:text-slate-500">
@@ -743,6 +952,47 @@ function Header() {
                 {darkMode ? <Sun size={19} strokeWidth={2.2} /> : <Moon size={19} strokeWidth={2.2} />}
               </button>
 
+              {/* NOTIFICATIONS */}
+              {user ? (
+                <div ref={notificationRef} className="relative hidden sm:block">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNotificationOpen((value) => !value);
+                      setAccountOpen(false);
+                      setExamOpen(false);
+                    }}
+                    aria-label="Notifications"
+                    aria-expanded={notificationOpen}
+                    className={`relative flex h-10 w-10 items-center justify-center rounded-xl border bg-white text-[#10233F] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#F2F7FD] hover:text-[#003B82] sm:h-11 sm:w-11 dark:bg-[#12243B] dark:text-slate-100 dark:hover:bg-[#16345C] dark:hover:text-[#19B8F2] ${
+                      notificationOpen
+                        ? "border-[#009FE3]/45 bg-[#F2F7FD] text-[#003B82] dark:border-[#19B8F2]/50 dark:bg-[#16345C] dark:text-[#19B8F2]"
+                        : "border-slate-200 hover:border-[#009FE3]/35 dark:border-[#24496F] dark:hover:border-[#19B8F2]/40"
+                    }`}
+                  >
+                    <Bell size={19} strokeWidth={2.3} />
+
+                    {unreadNotificationCount > 0 ? (
+                      <span className="absolute -right-1 -top-1 flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-[#F04444] px-1 text-[9px] font-black text-white ring-2 ring-white dark:ring-[#0D1B2E]">
+                        {unreadNotificationCount > 9
+                          ? "9+"
+                          : unreadNotificationCount}
+                      </span>
+                    ) : null}
+                  </button>
+
+                  {notificationOpen ? (
+                    <NotificationDropdown
+                      notifications={notifications}
+                      loading={notificationLoading}
+                      unreadCount={unreadNotificationCount}
+                      onNotificationClick={openNotification}
+                      onMarkAllRead={markAllNotificationsAsRead}
+                    />
+                  ) : null}
+                </div>
+              ) : null}
+
               {/* ACCOUNT / LOGIN */}
               {user ? (
                 <div ref={accountRef} className="relative hidden sm:block">
@@ -752,14 +1002,14 @@ function Header() {
                       setAccountOpen((value) => !value);
                       setExamOpen(false);
                     }}
-                    className="group flex h-10 items-center gap-2 rounded-xl bg-gradient-to-r from-[#003B82] to-[#009FE3] px-3.5 text-white shadow-[0_8px_22px_rgba(0,96,180,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(0,96,180,0.30)] sm:h-11"
+                    className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#003B82] to-[#009FE3] text-white shadow-[0_8px_22px_rgba(0,96,180,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(0,96,180,0.30)]"
                     aria-expanded={accountOpen}
+                    aria-label="Account"
+                    title={displayName}
                   >
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/15 text-[11px] font-black ring-1 ring-white/15">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-black ring-1 ring-white/15">
                       {userInitial}
                     </span>
-                    <span className="max-w-[82px] truncate text-xs font-black">{firstName}</span>
-                    <ChevronDown size={13} className={`transition-transform ${accountOpen ? "rotate-180" : ""}`} />
                   </button>
 
                   {accountOpen ? (
@@ -1080,14 +1330,18 @@ function Header() {
                   <div className="ml-10 space-y-1 border-l border-slate-200 pl-3 dark:border-white/10">
                     {availableExams.length > 0 ? (
                       availableExams.map((exam) => (
-                        <Link
+                        <a
                           key={exam.id}
-                          to={`/exam/${exam.id}`}
-                          onClick={() => setMobileOpen(false)}
-                          className="block rounded-lg px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-[#EAF4FF] hover:text-[#003B82] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-[#19B8F2]"
+                          href={`/exam/${encodeURIComponent(String(exam.id))}`}
+                          onClick={() => {
+                            setExamOpen(false);
+                            setMobileOpen(false);
+                            setAccountOpen(false);
+                          }}
+                          className="block w-full rounded-lg px-3 py-2.5 text-left text-sm font-bold text-slate-600 hover:bg-[#EAF4FF] hover:text-[#003B82] dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-[#19B8F2]"
                         >
                           {exam.name}
-                        </Link>
+                        </a>
                       ))
                     ) : (
                       <p className="px-3 py-2.5 text-xs font-bold text-slate-400 dark:text-slate-500">
@@ -1115,6 +1369,51 @@ function Header() {
                   </button>
                 ))}
               </div>
+
+              {user ? (
+                <>
+                  <p className="mt-7 px-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#C88700]">
+                    Notifications
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={() => setNotificationOpen((value) => !value)}
+                    className="mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-black text-[#10233F] transition hover:bg-[#EAF4FF] hover:text-[#003B82] dark:text-white dark:hover:bg-white/5"
+                  >
+                    <span className="relative text-[#003B82] dark:text-[#19B8F2]">
+                      <Bell size={18} />
+
+                      {unreadNotificationCount > 0 ? (
+                        <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#F04444] px-1 text-[8px] font-black text-white">
+                          {unreadNotificationCount > 9
+                            ? "9+"
+                            : unreadNotificationCount}
+                        </span>
+                      ) : null}
+                    </span>
+
+                    <span className="flex-1">Notifications</span>
+
+                    <ChevronDown
+                      size={16}
+                      className={`transition-transform ${
+                        notificationOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {notificationOpen ? (
+                    <MobileNotifications
+                      notifications={notifications}
+                      loading={notificationLoading}
+                      unreadCount={unreadNotificationCount}
+                      onNotificationClick={openNotification}
+                      onMarkAllRead={markAllNotificationsAsRead}
+                    />
+                  ) : null}
+                </>
+              ) : null}
 
               <p className="mt-7 px-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#C88700]">
                 Account
@@ -1200,6 +1499,112 @@ function Header() {
           </aside>
         </div>
       ) : null}
+
+      {/* =====================================================
+          MOBILE BOTTOM NAVIGATION
+          Mobile only: Home / Practice / Alerts / Account
+      ====================================================== */}
+
+      <nav
+        className="fixed inset-x-0 bottom-0 z-[55] border-t border-slate-200/90 bg-white/95 px-2 pt-2 shadow-[0_-12px_35px_rgba(0,31,79,0.12)] backdrop-blur-xl lg:hidden dark:border-[#24496F] dark:bg-[#0D1B2E]/95 dark:shadow-[0_-16px_40px_rgba(0,0,0,0.28)]"
+        style={{
+          paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))",
+        }}
+        aria-label="Mobile navigation"
+      >
+        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
+          <MobileBottomNavItem
+            icon={<House size={21} strokeWidth={2.25} />}
+            label="Home"
+            active={location.pathname === "/"}
+            onClick={() => {
+              setMobileAlertOpen(false);
+              navigate("/");
+            }}
+          />
+
+          <MobileBottomNavItem
+            icon={<ClipboardCheck size={21} strokeWidth={2.25} />}
+            label="Practice"
+            active={
+              location.pathname === "/" &&
+              location.hash === "#practice"
+            }
+            onClick={() => {
+              setMobileAlertOpen(false);
+              navigateHash("#practice");
+            }}
+          />
+
+          <MobileBottomNavItem
+            icon={<BellRing size={21} strokeWidth={2.25} />}
+            label="Alerts"
+            active={mobileAlertOpen}
+            badge={unreadNotificationCount}
+            onClick={() => {
+              setMobileOpen(false);
+              setNotificationOpen(false);
+              setMobileAlertOpen((value) => !value);
+            }}
+          />
+
+          <MobileBottomNavItem
+            icon={<CircleUserRound size={21} strokeWidth={2.25} />}
+            label="Account"
+            active={location.pathname.startsWith("/dashboard/profile")}
+            onClick={() => {
+              setMobileAlertOpen(false);
+              navigate(user ? "/dashboard/profile" : "/login");
+            }}
+          />
+        </div>
+      </nav>
+
+      {mobileAlertOpen ? (
+        <div
+          className="fixed inset-x-0 bottom-[calc(74px+env(safe-area-inset-bottom))] z-[60] px-3 lg:hidden"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setMobileAlertOpen(false);
+            }
+          }}
+        >
+          <div className="mx-auto max-w-md overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_-18px_55px_rgba(0,31,79,0.18)] dark:border-[#24496F] dark:bg-[#0D1B2E] dark:shadow-[0_-20px_55px_rgba(0,0,0,0.35)]">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-white/10">
+              <div>
+                <p className="text-sm font-black text-[#10233F] dark:text-white">
+                  Alerts
+                </p>
+                <p className="mt-0.5 text-[10px] font-bold text-slate-400">
+                  {unreadNotificationCount > 0
+                    ? `${unreadNotificationCount} unread notification${unreadNotificationCount > 1 ? "s" : ""}`
+                    : "You're all caught up"}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMobileAlertOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-[#10233F] dark:hover:bg-white/10 dark:hover:text-white"
+                aria-label="Close alerts"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <MobileNotifications
+              notifications={notifications}
+              loading={notificationLoading}
+              unreadCount={unreadNotificationCount}
+              onNotificationClick={(notification) => {
+                setMobileAlertOpen(false);
+                openNotification(notification);
+              }}
+              onMarkAllRead={markAllNotificationsAsRead}
+            />
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -1233,6 +1638,252 @@ function ArrowRightSmall() {
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+function NotificationDropdown({
+  notifications,
+  loading,
+  unreadCount,
+  onNotificationClick,
+  onMarkAllRead,
+}) {
+  return (
+    <div className="absolute right-0 top-[calc(100%+12px)] z-[80] w-[min(92vw,390px)] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_60px_rgba(0,31,79,0.16)] dark:border-[#24496F] dark:bg-[#0D1B2E] dark:shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
+      <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3.5 dark:border-white/10">
+        <div>
+          <p className="text-sm font-black text-[#10233F] dark:text-white">
+            Notifications
+          </p>
+          <p className="mt-0.5 text-[10px] font-bold text-slate-400">
+            {unreadCount > 0
+              ? `${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}`
+              : "You're all caught up"}
+          </p>
+        </div>
+
+        {unreadCount > 0 ? (
+          <button
+            type="button"
+            onClick={onMarkAllRead}
+            className="rounded-lg px-2.5 py-1.5 text-[10px] font-black text-[#003B82] transition hover:bg-[#EAF4FF] dark:text-[#19B8F2] dark:hover:bg-white/5"
+          >
+            Mark all read
+          </button>
+        ) : null}
+      </div>
+
+      <div className="max-h-[430px] overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 px-5 py-10 text-xs font-bold text-slate-400">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#003B82]/20 border-t-[#003B82]" />
+            Loading notifications...
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="px-5 py-10 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EAF4FF] text-[#003B82] dark:bg-white/5 dark:text-[#19B8F2]">
+              <Bell size={21} />
+            </div>
+            <p className="mt-3 text-sm font-black text-[#10233F] dark:text-white">
+              No notifications
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              New study updates and achievements will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="p-2">
+            {notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => onNotificationClick(notification)}
+                className={`flex w-full gap-3 rounded-xl p-3 text-left transition ${
+                  notification.is_read
+                    ? "hover:bg-slate-50 dark:hover:bg-white/5"
+                    : "bg-[#EAF4FF]/70 hover:bg-[#EAF4FF] dark:bg-[#145AA8]/10 dark:hover:bg-[#145AA8]/20"
+                }`}
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-lg shadow-sm dark:bg-[#12243B]">
+                  {notification.icon || getNotificationIcon(notification.category)}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start gap-2">
+                    <p
+                      className={`min-w-0 flex-1 truncate text-xs ${
+                        notification.is_read
+                          ? "font-bold text-[#10233F] dark:text-slate-200"
+                          : "font-black text-[#003B82] dark:text-white"
+                      }`}
+                    >
+                      {notification.title}
+                    </p>
+
+                    {!notification.is_read ? (
+                      <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#009FE3]" />
+                    ) : null}
+                  </div>
+
+                  <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-500 dark:text-slate-400">
+                    {notification.message}
+                  </p>
+
+                  <p className="mt-1.5 text-[9px] font-bold text-slate-400">
+                    {formatNotificationTime(notification.created_at)}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MobileNotifications({
+  notifications,
+  loading,
+  unreadCount,
+  onNotificationClick,
+  onMarkAllRead,
+}) {
+  return (
+    <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
+      {loading ? (
+        <div className="px-4 py-5 text-center text-xs font-bold text-slate-400">
+          Loading notifications...
+        </div>
+      ) : notifications.length === 0 ? (
+        <div className="px-4 py-5 text-center">
+          <Bell size={20} className="mx-auto text-slate-400" />
+          <p className="mt-2 text-xs font-black text-slate-500 dark:text-slate-300">
+            No notifications
+          </p>
+        </div>
+      ) : (
+        <>
+          {unreadCount > 0 ? (
+            <button
+              type="button"
+              onClick={onMarkAllRead}
+              className="w-full border-b border-slate-200 px-4 py-2.5 text-right text-[10px] font-black text-[#003B82] dark:border-white/10 dark:text-[#19B8F2]"
+            >
+              Mark all as read
+            </button>
+          ) : null}
+
+          <div className="max-h-[360px] overflow-y-auto p-2">
+            {notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => onNotificationClick(notification)}
+                className={`flex w-full gap-3 rounded-xl p-3 text-left transition ${
+                  notification.is_read
+                    ? "hover:bg-white dark:hover:bg-white/5"
+                    : "bg-white dark:bg-white/5"
+                }`}
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EAF4FF] text-base dark:bg-[#145AA8]/20">
+                  {notification.icon || getNotificationIcon(notification.category)}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black text-[#10233F] dark:text-white">
+                    {notification.title}
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-slate-500 dark:text-slate-400">
+                    {notification.message}
+                  </p>
+                  <p className="mt-1 text-[9px] font-bold text-slate-400">
+                    {formatNotificationTime(notification.created_at)}
+                  </p>
+                </div>
+
+                {!notification.is_read ? (
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#009FE3]" />
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function getNotificationIcon(category) {
+  const icons = {
+    study: "🎯",
+    streak: "🔥",
+    performance: "📈",
+    learning: "📚",
+    achievement: "🏆",
+    report: "🚩",
+    announcement: "📢",
+    account: "🔐",
+    system: "⚙️",
+  };
+
+  return icons[category] || "🔔";
+}
+
+function formatNotificationTime(dateString) {
+  if (!dateString) return "";
+
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diff < 0 || diff < 60) return "Just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+function MobileBottomNavItem({
+  icon,
+  label,
+  active = false,
+  badge = 0,
+  onClick,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1.5 transition-all duration-200 ${
+        active
+          ? "bg-[#EAF4FF] text-[#003B82] dark:bg-[#145AA8]/20 dark:text-[#19B8F2]"
+          : "text-slate-500 hover:bg-slate-50 hover:text-[#003B82] dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-[#19B8F2]"
+      }`}
+      aria-current={active ? "page" : undefined}
+    >
+      <span className="relative">
+        {icon}
+
+        {badge > 0 ? (
+          <span className="absolute -right-3 -top-2 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#F04444] px-1 text-[8px] font-black text-white ring-2 ring-white dark:ring-[#0D1B2E]">
+            {badge > 9 ? "9+" : badge}
+          </span>
+        ) : null}
+      </span>
+
+      <span className="text-[10px] font-black leading-none">
+        {label}
+      </span>
+
+      {active ? (
+        <span className="absolute bottom-1 h-1 w-5 rounded-full bg-[#F6C400]" />
+      ) : null}
+    </button>
   );
 }
 

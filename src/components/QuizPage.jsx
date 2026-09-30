@@ -7,7 +7,7 @@ import {
 } from "react";
 
 
-import { X } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 
 import { createPortal } from "react-dom";
 
@@ -24,6 +24,7 @@ import QuestionPalette from "../components/QuestionPalette";
 import QuizFooter from "../components/QuizFooter";
 import SubmitModal from "../components/SubmitModal";
 import ExitQuizModal from "../components/ExitQuizModal";
+import ReportQuestionModal from "./ReportQuestionModal";
 
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabase";
@@ -118,6 +119,8 @@ function QuizPage() {
   const isMockTest = Boolean(mockId);
   const searchParams = new URLSearchParams(location.search);
   const isCustomQuiz = !isMockTest && searchParams.get("custom") === "1";
+  const isRetryWrongQuiz =
+    !isMockTest && searchParams.get("retry") === "1";
   const requestedCustomCount = Number(searchParams.get("count") || 0);
   const questionOrder =
     searchParams.get("order") === "random" ||
@@ -155,7 +158,12 @@ function QuizPage() {
         isMockTest
           ? `mock-${mockId || "unknown"}`
           : `practice-${subjectId || "unknown"}-${setId || "unknown"}`
-      }-${isCustomQuiz ? `custom-${requestedCustomCount}` : "standard"}-${questionOrder}`,
+      }-${isRetryWrongQuiz
+        ? `retry-wrong-${requestedCustomCount}`
+        : isCustomQuiz
+          ? `custom-${requestedCustomCount}`
+          : "standard"
+      }-${questionOrder}`,
     [
       examId,
       trackId,
@@ -164,6 +172,7 @@ function QuizPage() {
       mockId,
       isMockTest,
       isCustomQuiz,
+      isRetryWrongQuiz,
       requestedCustomCount,
       questionOrder,
     ]
@@ -374,15 +383,73 @@ function QuizPage() {
               })
             );
 
-        let orderedQuestions =
-          questionOrder === "random"
-            ? shuffleArray(formattedQuestions)
-            : formattedQuestions;
+        /* =========================================================
+           QUESTION SELECTION
+        ========================================================= */
+
+        let orderedQuestions = [];
+
+        if (isRetryWrongQuiz) {
+          let retryQuestionIds = [];
+
+          try {
+            const launchData = sessionStorage.getItem(
+              `quiz-launch-${selectedTest.id}`
+            );
+
+            const parsedLaunchData = launchData
+              ? JSON.parse(launchData)
+              : null;
+
+            if (
+              parsedLaunchData?.mode === "retry-wrong" &&
+              Array.isArray(parsedLaunchData.questionIds)
+            ) {
+              retryQuestionIds = parsedLaunchData.questionIds;
+            }
+          } catch (retryError) {
+            console.warn(
+              "Unable to read retry quiz data:",
+              retryError
+            );
+          }
+
+          if (retryQuestionIds.length === 0) {
+            throw new Error(
+              "Unable to load the wrong questions for retry."
+            );
+          }
+
+          const retryIdSet = new Set(
+            retryQuestionIds.map((id) => String(id))
+          );
+
+          orderedQuestions = formattedQuestions.filter((question) =>
+            retryIdSet.has(String(question.id))
+          );
+
+          if (questionOrder === "random") {
+            orderedQuestions = shuffleArray(orderedQuestions);
+          }
+
+          if (orderedQuestions.length === 0) {
+            throw new Error(
+              "The wrong questions could not be found."
+            );
+          }
+        } else {
+          orderedQuestions =
+            questionOrder === "random"
+              ? shuffleArray(formattedQuestions)
+              : formattedQuestions;
+        }
 
         const finalQuestions =
-          isCustomQuiz && customCount < orderedQuestions.length
-            ? orderedQuestions.slice(0, customCount)
-            : orderedQuestions;
+          isRetryWrongQuiz
+            ? orderedQuestions
+            : isCustomQuiz && customCount < orderedQuestions.length
+              ? orderedQuestions.slice(0, customCount)
+              : orderedQuestions;
 
         if (!cancelled) {
           const finalTest = {
@@ -392,6 +459,19 @@ function QuizPage() {
 
           setTest(finalTest);
           setQuestions(finalQuestions);
+
+          if (isRetryWrongQuiz) {
+            try {
+              sessionStorage.removeItem(
+                `quiz-launch-${selectedTest.id}`
+              );
+            } catch (cleanupError) {
+              console.warn(
+                "Unable to clear retry launch data:",
+                cleanupError
+              );
+            }
+          }
 
           try {
             sessionStorage.setItem(
@@ -564,10 +644,6 @@ function QuizPage() {
 
   const autoSubmitTriggeredRef = useRef(false);
 
-  // Stores the real quiz start time so attempt duration is based on actual
-  // elapsed time instead of React countdown state.
-  const quizStartedAtRef = useRef(null);
-
 
   /*
     Mobile Question Palette drawer.
@@ -587,6 +663,7 @@ function QuizPage() {
      The quiz state therefore stays mounted and the timer continues.
   */
   const [showExitModal, setShowExitModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const quizHistoryGuardAddedRef = useRef(false);
   const allowQuizExitRef = useRef(false);
 
@@ -908,35 +985,16 @@ function QuizPage() {
     }
 
     let endTime;
-    let startedAt;
 
     try {
       const stored = sessionStorage.getItem(activeQuizKey);
       const parsed = stored ? JSON.parse(stored) : {};
 
-      const storedStartedAt = Number(parsed?.startedAt);
-      const storedEndTime = Number(parsed?.endTime);
-      const durationMs =
-        Number(test.durationMinutes || 60) * 60 * 1000;
-
-      if (Number.isFinite(storedStartedAt) && storedStartedAt > 0) {
-        // Continue the original quiz start time after refresh/restoration.
-        startedAt = storedStartedAt;
-      } else if (Number.isFinite(storedEndTime) && storedEndTime > 0) {
-        // Backward compatibility for an in-progress quiz created before
-        // startedAt was stored: reconstruct it from the existing end time.
-        startedAt = storedEndTime - durationMs;
-      } else {
-        // Brand-new quiz. Start timing now.
-        startedAt = Date.now();
-      }
-
-      quizStartedAtRef.current = startedAt;
-
-      endTime = storedEndTime;
+      endTime = Number(parsed?.endTime);
 
       if (!Number.isFinite(endTime) || endTime <= 0) {
-        endTime = startedAt + durationMs;
+        endTime =
+          Date.now() + Number(test.durationMinutes || 60) * 60 * 1000;
       }
 
       const updateState = () => {
@@ -958,7 +1016,6 @@ function QuizPage() {
               version: 1,
               test,
               questions,
-              startedAt,
               endTime,
               remainingTime: remaining,
               activeState: {
@@ -1571,23 +1628,16 @@ function QuizPage() {
         correctAnswers -
         wrongAnswers;
 
-      /*
-        Calculate elapsed time from the actual quiz start timestamp.
-        This is independent of React state updates and remains accurate
-        after re-renders and page restoration.
-      */
-      const submissionTimeMs = Date.now();
-      const quizStartedAt = Number(quizStartedAtRef.current);
+      const effectiveTimeRemaining =
+        forcedTimeRemaining !== null
+          ? Number(forcedTimeRemaining)
+          : Number(timeRemaining || 0);
 
-      const timeTakenSeconds =
-        Number.isFinite(quizStartedAt) && quizStartedAt > 0
-          ? Math.max(
-              0,
-              Math.floor(
-                (submissionTimeMs - quizStartedAt) / 1000
-              )
-            )
-          : 0;
+      const timeTakenSeconds = Math.max(
+        0,
+        Number(test.durationMinutes || 0) * 60 -
+        effectiveTimeRemaining
+      );
 
       /*
         1. Create the parent attempt row.
@@ -1598,11 +1648,6 @@ function QuizPage() {
           .insert({
             user_id: user.id,
             test_id: test.id,
-            started_at: new Date(
-              Number.isFinite(quizStartedAt) && quizStartedAt > 0
-                ? quizStartedAt
-                : submissionTimeMs
-            ).toISOString(),
             submitted_at: submittedAt,
             time_taken_seconds: timeTakenSeconds,
             total_questions: questions.length,
@@ -1691,8 +1736,6 @@ function QuizPage() {
         markedQuestions: markedCount,
         score,
         maximumScore,
-        timeTakenSeconds,
-        quizStartedAt: quizStartedAt > 0 ? quizStartedAt : null,
         questionSnapshots: questions.map((question) => ({
           id: question.id,
           testId: question.testId,
@@ -2274,6 +2317,10 @@ function QuizPage() {
             handleMarkForReview
           }
 
+          onReportQuestion={() =>
+            setShowReportModal(true)
+          }
+
           onSaveAndNext={
             handleSaveAndNext
           }
@@ -2281,6 +2328,14 @@ function QuizPage() {
         />
 
       </div>
+
+      <ReportQuestionModal
+        open={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        question={currentQuestion}
+        testId={test?.id}
+        userId={user?.id}
+      />
 
 
       {/* =====================================================

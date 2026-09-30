@@ -27,6 +27,8 @@ import AdminAttempts from "./pages/admin/AdminAttempts";
 import AdminAttemptDetails from "./pages/admin/AdminAttemptDetails";
 import AdminMotivation from "./pages/admin/AdminMotivation";
 import AdminSettings from "./pages/admin/AdminSettings";
+import QuestionReportsPage from "./pages/admin/QuestionReportsPage";
+import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import MotivationPage from "./pages/MotivationPage";
 import ExamDashboard from "./components/ExamDashboard";
 import { SubjectSets } from "./components/LearningFlow";
@@ -238,7 +240,22 @@ function App() {
             path="questions/:questionId/edit"
             element={<AdminEditQuestion />}
           />
+
+          <Route
+            path="question-reports"
+            element={<QuestionReportsPage />}
+          />
+
+          <Route
+            path="announcements"
+            element={<AdminAnnouncements />}
+          />
+
+
         </Route>
+
+
+
 
 
       </Routes>

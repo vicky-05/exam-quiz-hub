@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   Clock3,
@@ -11,6 +12,7 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-r
 import { useMemo } from "react";
 
 import Header from "./Header";
+import ReportQuestionModal from "./ReportQuestionModal";
 import { useEffect, useState } from "react";
 import {
   getTests as getSupabaseTests,
@@ -33,6 +35,9 @@ function ResultPage() {
   const { user, loading: authLoading } = useAuth();
 
   const [reviewFilter, setReviewFilter] = useState("all");
+
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportQuestion, setReportQuestion] = useState(null);
 
   /* =========================================================
      LOAD TEST + SAVED ATTEMPT
@@ -89,12 +94,17 @@ function ResultPage() {
           throw new Error("Test not found.");
         }
 
+        // The source test may contain many more questions than this
+        // particular attempt (for example, a 10-question custom quiz
+        // created from a 163-question test). The attempt row is the
+        // authoritative source for the number of questions actually seen.
         const formattedTest = {
           id: selectedTest.id,
           subjectId: selectedTest.subject_id,
           title: selectedTest.title,
           setNumber: selectedTest.set_number,
-          totalQuestions: selectedTest.total_questions,
+          totalQuestions: Number(selectedTest.total_questions || 0),
+          sourceTotalQuestions: Number(selectedTest.total_questions || 0),
           durationMinutes: selectedTest.duration_minutes,
           marksPerQuestion: Number(
             selectedTest.marks_per_question ?? 1
@@ -182,24 +192,45 @@ function ResultPage() {
           savedAttempt = null;
         }
 
+        const answerQuestionIds = new Set(
+          (answerRows || []).map((row) => row.question_id)
+        );
+
         const snapshotMap = new Map(
           (savedAttempt?.questionSnapshots || []).map(
             (question) => [question.id, question]
           )
         );
 
-        let questionSnapshots = savedAttempt?.questionSnapshots || [];
+        let questionSnapshots = (savedAttempt?.questionSnapshots || []).filter(
+          (question) => answerQuestionIds.has(question.id)
+        );
 
-        // If the browser session still has the quiz snapshot, preserve the
-        // exact shuffled order the user saw. Otherwise fall back to the
-        // original Supabase question order.
+        /*
+          IMPORTANT FOR CUSTOM QUIZZES
+
+          A test can contain 163 questions while this particular attempt
+          may contain only 10. ResultPage must review the questions that
+          belong to THIS attempt, not every question in the source test.
+
+          attempt_answers contains one row for every question included in
+          the submitted attempt, so its question_id values define the
+          authoritative question set for the result.
+        */
+
         if (questionSnapshots.length === 0) {
           const dbQuestions = await getSupabaseQuestions(
             selectedTest.id
           );
 
-          questionSnapshots = (dbQuestions || []).map(
-            (question) => ({
+          questionSnapshots = (dbQuestions || [])
+            .filter((question) => answerQuestionIds.has(question.id))
+            .sort(
+              (a, b) =>
+                Number(a.display_order ?? 0) -
+                Number(b.display_order ?? 0)
+            )
+            .map((question) => ({
               id: question.id,
               testId: question.test_id,
               question: question.question_text,
@@ -227,9 +258,18 @@ function ResultPage() {
               originalCorrectAnswer: Number(
                 question.correct_answer
               ),
-            })
-          );
+            }));
         }
+
+        // Keep the attempt count authoritative even if the source test has
+        // a larger total_questions value.
+        const attemptTotalQuestions = Number(
+          attemptRow.total_questions ?? questionSnapshots.length ?? 0
+        );
+
+        formattedTest.totalQuestions = attemptTotalQuestions;
+        formattedTest.isCustomQuiz =
+          attemptTotalQuestions < Number(selectedTest.total_questions || 0);
 
         const answers = {};
         const markedForReview = {};
@@ -293,6 +333,8 @@ function ResultPage() {
             attemptRow.maximum_score ?? 0
           ),
           questionSnapshots,
+          // Keep the actual attempt count available to the UI.
+          totalQuestions: attemptTotalQuestions,
         };
 
         if (!cancelled) {
@@ -525,6 +567,61 @@ function ResultPage() {
       (item) => item.status === reviewFilter
     );
   }, [result, reviewFilter]);
+
+  /* =========================================================
+     QUESTION NAVIGATOR
+  ========================================================= */
+
+  const jumpToQuestion = (questionId) => {
+    const element = document.getElementById(
+      `review-question-${questionId}`
+    );
+
+    if (element) {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  };
+
+  /* =========================================================
+     RETRY WRONG QUESTIONS
+  ========================================================= */
+
+  const retryWrongQuestions = () => {
+    if (!result || result.wrong === 0) {
+      return;
+    }
+
+    const wrongQuestionIds = result.review
+      .filter((item) => item.status === "wrong")
+      .map((item) => item.question.id)
+      .filter(Boolean);
+
+    if (wrongQuestionIds.length === 0) {
+      return;
+    }
+
+    try {
+      sessionStorage.setItem(
+        `quiz-launch-${test.id}`,
+        JSON.stringify({
+          mode: "retry-wrong",
+          questionIds: wrongQuestionIds,
+          count: wrongQuestionIds.length,
+          sourceAttemptId: attempt.attemptId,
+          createdAt: Date.now(),
+        })
+      );
+    } catch (error) {
+      console.warn("Unable to prepare retry quiz:", error);
+    }
+
+    navigate(
+      `/exam/${examId}/${trackId}/quiz/${subjectId}/${setId}?custom=1&count=${wrongQuestionIds.length}&order=random&retry=1`
+    );
+  };
 
   /* =========================================================
      FORMAT TIME
@@ -881,6 +978,20 @@ function ResultPage() {
                   Review the questions you missed, then take the test again to improve your score.
                 </p>
                 <div className="mt-auto grid gap-2.5 pt-6">
+                  {result.wrong > 0 && (
+                    <button
+                      type="button"
+                      onClick={retryWrongQuestions}
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-xs font-black text-white transition hover:-translate-y-0.5 hover:bg-white/15"
+                    >
+                      <RotateCcw size={15} />
+                      Retry Wrong Questions
+                      <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[9px]">
+                        {result.wrong}
+                      </span>
+                    </button>
+                  )}
+
                   <Link
                     to={`/exam/${examId}/${trackId}/quiz/${subjectId}/${setId}`}
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F6C400] px-4 py-3 text-xs font-black text-[#10233F] transition hover:-translate-y-0.5 hover:bg-[#FFD23F]"
@@ -933,6 +1044,7 @@ function ResultPage() {
                 {[
                   ["all", "All Questions", result.totalQuestions],
                   ["answered", "Answered", result.attempted],
+                  ["correct", "Correct", result.correct],
                   ["wrong", "Wrong", result.wrong],
                   ["unanswered", "Unanswered", result.unanswered],
                 ].map(([key, label, count]) => {
@@ -962,6 +1074,51 @@ function ResultPage() {
                     </button>
                   );
                 })}
+              </div>
+
+              {/* =========================================================
+                 QUESTION NAVIGATOR
+              ========================================================= */}
+              <div className="mt-3 rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-sm dark:border-[#243A55] dark:bg-[#0D1B2E]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[#009FE3] dark:text-[#19B8F2]">
+                      Question Navigator
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-slate-500 dark:text-[#A8B4C5]">
+                      Click a question number to jump directly to it.
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-[#F7F9FC] px-2.5 py-1 text-[9px] font-black text-slate-500 dark:bg-[#12243B] dark:text-[#A8B4C5]">
+                    {filteredReview.length} Questions
+                  </span>
+                </div>
+
+                <div className="mt-4 flex max-h-40 flex-wrap gap-2 overflow-y-auto pr-1">
+                  {filteredReview.map((item) => {
+                    const { question, questionNumber, status } = item;
+
+                    const numberClass =
+                      status === "correct"
+                        ? "border-[#BFE8FA] bg-[#EAF6FD] text-[#003B82] hover:bg-[#DDF2FC] dark:border-[#24506A] dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]"
+                        : status === "wrong"
+                          ? "border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-300"
+                          : "border-[#E2E8F0] bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-[#243A55] dark:bg-[#12243B] dark:text-[#A8B4C5]";
+
+                    return (
+                      <button
+                        key={question.id}
+                        type="button"
+                        onClick={() => jumpToQuestion(question.id)}
+                        className={`grid h-9 min-w-9 place-items-center rounded-lg border px-2 text-[10px] font-black transition hover:-translate-y-0.5 ${numberClass}`}
+                        title={`Go to Question ${questionNumber}`}
+                      >
+                        {questionNumber}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -999,7 +1156,11 @@ function ResultPage() {
                 const config = statusConfig[status];
 
                 return (
-                  <article key={question.id} className={`overflow-hidden rounded-2xl border shadow-sm ${config.wrapper}`}>
+                  <article
+                    key={question.id}
+                    id={`review-question-${question.id}`}
+                    className={`scroll-mt-24 overflow-hidden rounded-2xl border shadow-sm ${config.wrapper}`}
+                  >
                     <div className={`border-b border-black/5 px-4 py-3 dark:border-white/5 sm:px-5 ${config.top}`}>
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -1062,6 +1223,20 @@ function ResultPage() {
                           <ListChecks size={14} /> You did not answer this question.
                         </div>
                       )}
+
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReportQuestion(question);
+                            setShowReportModal(true);
+                          }}
+                          className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-black text-amber-700 transition hover:bg-amber-100 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300"
+                        >
+                          <AlertTriangle size={14} />
+                          Report Question
+                        </button>
+                      </div>
                     </div>
                   </article>
                 );
@@ -1108,6 +1283,17 @@ function ResultPage() {
           </div>
         </div>
       </main>
+
+      <ReportQuestionModal
+        open={showReportModal}
+        onClose={() => {
+          setShowReportModal(false);
+          setReportQuestion(null);
+        }}
+        question={reportQuestion}
+        testId={test?.id}
+        userId={user?.id}
+      />
     </div>
   );
 }

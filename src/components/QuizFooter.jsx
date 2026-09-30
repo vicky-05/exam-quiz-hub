@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Eraser,
@@ -14,6 +15,7 @@ function QuizFooter({
   onPrevious,
   onClearResponse,
   onMarkForReview,
+  onReportQuestion,
   onSaveAndNext,
 }) {
   const isFirstQuestion = currentQuestionIndex === 0;
@@ -22,15 +24,17 @@ function QuizFooter({
   return (
     <footer className="sticky bottom-0 z-40 shrink-0 border-t border-slate-200 bg-white/98 text-[#10233F] shadow-[0_-6px_20px_rgba(16,35,63,0.08)] backdrop-blur transition-colors duration-200 dark:border-[#243A55] dark:bg-[#0D1B2E]/98 dark:text-white dark:shadow-[0_-6px_20px_rgba(0,0,0,0.16)]">
       <div className="mx-auto flex min-h-[58px] max-w-[1600px] items-center justify-between gap-2 px-3 py-2 sm:px-5 lg:px-6">
+
         {/* Left Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+
           {/* Previous */}
           <button
             type="button"
             onClick={onPrevious}
             disabled={isFirstQuestion}
             aria-label="Previous question"
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-[#F7F9FC] px-2.5 text-[11px] font-black text-slate-600 transition hover:border-[#009FE3]/50 hover:bg-[#EAF6FD] hover:text-[#003B82] disabled:cursor-not-allowed disabled:opacity-35 sm:px-3.5 dark:border-[#29425F] dark:bg-[#12243B] dark:text-[#D7E0EA] dark:hover:border-[#19B8F2]/50 dark:hover:bg-[#19B8F2]/10 dark:hover:text-[#003B82] dark:text-[#19B8F2]"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-[#F7F9FC] px-2.5 text-[11px] font-black text-slate-600 transition hover:border-[#009FE3]/50 hover:bg-[#EAF6FD] hover:text-[#003B82] disabled:cursor-not-allowed disabled:opacity-35 sm:px-3.5 dark:border-[#29425F] dark:bg-[#12243B] dark:text-[#D7E0EA] dark:hover:border-[#19B8F2]/50 dark:hover:bg-[#19B8F2]/10 dark:hover:text-[#19B8F2]"
           >
             <ArrowLeft size={15} strokeWidth={2.7} />
             <span className="hidden sm:inline">Previous</span>
@@ -64,6 +68,19 @@ function QuizFooter({
 
         {/* Right Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+
+          {/* Report Question */}
+          <button
+            type="button"
+            onClick={onReportQuestion}
+            aria-label="Report question"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 text-[11px] font-black text-amber-700 transition hover:border-amber-300 hover:bg-amber-100 hover:text-amber-800 sm:px-3.5 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-300 dark:hover:bg-amber-400/15"
+          >
+            <AlertTriangle size={14} />
+            <span className="hidden md:inline">Report Question</span>
+            <span className="md:hidden">Report</span>
+          </button>
+
           {/* Mark for Review */}
           <button
             type="button"

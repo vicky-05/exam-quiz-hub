@@ -12,6 +12,8 @@ import {
   XCircle,
   ArrowRight,
   RefreshCw,
+  Bell,
+  AlertTriangle,
 } from "lucide-react";
 
 import { supabase } from "../../services/supabase";
@@ -33,6 +35,15 @@ function AdminDashboard() {
 
   const [recentUsers, setRecentUsers] = useState([]);
   const [recentAttempts, setRecentAttempts] = useState([]);
+
+  // ==================================================
+  // ADMIN NOTIFICATIONS
+  // ==================================================
+
+  const [notifications, setNotifications] = useState({
+    pendingUsers: [],
+    pendingReports: [],
+  });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -97,7 +108,11 @@ function AdminDashboard() {
       ].filter(Boolean);
 
       if (countErrors.length > 0) {
-        console.error("Dashboard count errors:", countErrors);
+        console.error(
+          "Dashboard count errors:",
+          countErrors
+        );
+
         throw countErrors[0];
       }
 
@@ -112,13 +127,68 @@ function AdminDashboard() {
       });
 
       // --------------------------------------------------
+      // ADMIN NOTIFICATIONS
+      // --------------------------------------------------
+
+      const [
+        pendingNotificationUsers,
+        pendingNotificationReports,
+      ] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select(
+            "id, full_name, email, created_at"
+          )
+          .eq("status", "pending")
+          .neq("role", "admin")
+          .order("created_at", {
+            ascending: false,
+          })
+          .limit(5),
+
+        supabase
+          .from("question_reports")
+          .select(
+            "id, reason, description, created_at"
+          )
+          .eq("status", "pending")
+          .order("created_at", {
+            ascending: false,
+          })
+          .limit(5),
+      ]);
+
+      if (pendingNotificationUsers.error) {
+        throw pendingNotificationUsers.error;
+      }
+
+      if (pendingNotificationReports.error) {
+        throw pendingNotificationReports.error;
+      }
+
+      setNotifications({
+        pendingUsers:
+          pendingNotificationUsers.data || [],
+
+        pendingReports:
+          pendingNotificationReports.data || [],
+      });
+
+      // --------------------------------------------------
       // RECENT USERS
       // --------------------------------------------------
 
-      const { data: users, error: usersError } = await supabase
+      const {
+        data: users,
+        error: usersError,
+      } = await supabase
         .from("profiles")
-        .select("id, full_name, email, status, role, created_at")
-        .order("created_at", { ascending: false })
+        .select(
+          "id, full_name, email, status, role, created_at"
+        )
+        .order("created_at", {
+          ascending: false,
+        })
         .limit(5);
 
       if (usersError) {
@@ -131,7 +201,10 @@ function AdminDashboard() {
       // RECENT ATTEMPTS
       // --------------------------------------------------
 
-      const { data: attempts, error: attemptsError } = await supabase
+      const {
+        data: attempts,
+        error: attemptsError,
+      } = await supabase
         .from("test_attempts")
         .select(
           `
@@ -147,7 +220,9 @@ function AdminDashboard() {
             started_at
           `
         )
-        .order("started_at", { ascending: false })
+        .order("started_at", {
+          ascending: false,
+        })
         .limit(5);
 
       if (attemptsError) {
@@ -158,7 +233,9 @@ function AdminDashboard() {
       const userIds = [
         ...new Set(
           (attempts || [])
-            .map((attempt) => attempt.user_id)
+            .map(
+              (attempt) => attempt.user_id
+            )
             .filter(Boolean)
         ),
       ];
@@ -166,24 +243,31 @@ function AdminDashboard() {
       let attemptUsers = [];
 
       if (userIds.length > 0) {
-        const { data: usersForAttempts, error: usersForAttemptsError } =
-          await supabase
-            .from("profiles")
-            .select("id, full_name, email")
-            .in("id", userIds);
+        const {
+          data: usersForAttempts,
+          error: usersForAttemptsError,
+        } = await supabase
+          .from("profiles")
+          .select(
+            "id, full_name, email"
+          )
+          .in("id", userIds);
 
         if (usersForAttemptsError) {
           throw usersForAttemptsError;
         }
 
-        attemptUsers = usersForAttempts || [];
+        attemptUsers =
+          usersForAttempts || [];
       }
 
       // Get test information
       const testIds = [
         ...new Set(
           (attempts || [])
-            .map((attempt) => attempt.test_id)
+            .map(
+              (attempt) => attempt.test_id
+            )
             .filter(Boolean)
         ),
       ];
@@ -191,42 +275,70 @@ function AdminDashboard() {
       let testsForAttempts = [];
 
       if (testIds.length > 0) {
-        const { data: testsData, error: testsError } = await supabase
+        const {
+          data: testsData,
+          error: testsError,
+        } = await supabase
           .from("tests")
-          .select("id, title, set_number, test_type")
+          .select(
+            "id, title, set_number, test_type"
+          )
           .in("id", testIds);
 
         if (testsError) {
           throw testsError;
         }
 
-        testsForAttempts = testsData || [];
+        testsForAttempts =
+          testsData || [];
       }
 
-      const formattedAttempts = (attempts || []).map((attempt) => {
-        const attemptUser = attemptUsers.find(
-          (user) => user.id === attempt.user_id
+      const formattedAttempts =
+        (attempts || []).map(
+          (attempt) => {
+            const attemptUser =
+              attemptUsers.find(
+                (user) =>
+                  user.id ===
+                  attempt.user_id
+              );
+
+            const attemptTest =
+              testsForAttempts.find(
+                (test) =>
+                  test.id ===
+                  attempt.test_id
+              );
+
+            return {
+              ...attempt,
+
+              userName:
+                attemptUser?.full_name ||
+                attemptUser?.email ||
+                "Unknown User",
+
+              testTitle:
+                attemptTest?.title ||
+                "Unknown Test",
+
+              setNumber:
+                attemptTest?.set_number,
+
+              testType:
+                attemptTest?.test_type,
+            };
+          }
         );
 
-        const attemptTest = testsForAttempts.find(
-          (test) => test.id === attempt.test_id
-        );
-
-        return {
-          ...attempt,
-          userName:
-            attemptUser?.full_name ||
-            attemptUser?.email ||
-            "Unknown User",
-          testTitle: attemptTest?.title || "Unknown Test",
-          setNumber: attemptTest?.set_number,
-          testType: attemptTest?.test_type,
-        };
-      });
-
-      setRecentAttempts(formattedAttempts);
+      setRecentAttempts(
+        formattedAttempts
+      );
     } catch (err) {
-      console.error("Admin dashboard loading failed:", err);
+      console.error(
+        "Admin dashboard loading failed:",
+        err
+      );
 
       setError(
         err?.message ||
@@ -244,7 +356,9 @@ function AdminDashboard() {
   function formatDate(date) {
     if (!date) return "—";
 
-    return new Date(date).toLocaleDateString("en-IN", {
+    return new Date(
+      date
+    ).toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -285,6 +399,10 @@ function AdminDashboard() {
       </span>
     );
   }
+
+  // ==================================================
+  // STAT CARDS
+  // ==================================================
 
   const statCards = [
     {
@@ -338,19 +456,27 @@ function AdminDashboard() {
     },
   ];
 
+  // ==================================================
+  // LOADING
+  // ==================================================
+
   if (loading) {
     return (
       <div className="space-y-6">
         <div className="h-32 animate-pulse rounded-3xl bg-white shadow-sm" />
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 7 }).map((_, index) => (
-            <div
-              key={index}
-              className="h-32 animate-pulse rounded-2xl bg-white shadow-sm"
-            />
-          ))}
+          {Array.from({ length: 7 }).map(
+            (_, index) => (
+              <div
+                key={index}
+                className="h-32 animate-pulse rounded-2xl bg-white shadow-sm"
+              />
+            )
+          )}
         </div>
+
+        <div className="h-36 animate-pulse rounded-2xl bg-white shadow-sm" />
 
         <div className="grid gap-6 xl:grid-cols-2">
           <div className="h-80 animate-pulse rounded-2xl bg-white shadow-sm" />
@@ -359,6 +485,16 @@ function AdminDashboard() {
       </div>
     );
   }
+
+  const pendingUserCount =
+    notifications.pendingUsers.length;
+
+  const pendingReportCount =
+    notifications.pendingReports.length;
+
+  const attentionCount =
+    pendingUserCount +
+    pendingReportCount;
 
   return (
     <div className="space-y-6">
@@ -375,12 +511,14 @@ function AdminDashboard() {
 
             <h1 className="text-2xl font-extrabold sm:text-3xl">
               Welcome back,{" "}
-              {profile?.full_name || "Administrator"}
+              {profile?.full_name ||
+                "Administrator"}
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-100">
-              Manage users, exams, questions, tests and
-              monitor activity across Exam Quiz Hub.
+              Manage users, exams, questions, tests
+              and monitor activity across Exam Quiz
+              Hub.
             </p>
           </div>
 
@@ -416,7 +554,8 @@ function AdminDashboard() {
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Current statistics from your Exam Quiz Hub database.
+            Current statistics from your Exam Quiz
+            Hub database.
           </p>
         </div>
 
@@ -436,7 +575,9 @@ function AdminDashboard() {
                     </p>
 
                     <p className="mt-2 text-3xl font-extrabold text-[#10233F]">
-                      {card.value.toLocaleString("en-IN")}
+                      {card.value.toLocaleString(
+                        "en-IN"
+                      )}
                     </p>
                   </div>
 
@@ -452,6 +593,137 @@ function AdminDashboard() {
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* ------------------------------------------------ */}
+      {/* NEEDS ATTENTION */}
+      {/* ------------------------------------------------ */}
+
+      <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6">
+          <div>
+            <h2 className="flex items-center gap-2 font-extrabold text-[#10233F]">
+              <Bell
+                size={18}
+                className="text-[#003B82]"
+              />
+              Needs Attention
+            </h2>
+
+            <p className="mt-1 text-xs text-slate-500">
+              Items that require your attention.
+            </p>
+          </div>
+
+          <div
+            className={`flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-xs font-extrabold ${
+              attentionCount > 0
+                ? "bg-red-50 text-red-600"
+                : "bg-green-50 text-green-600"
+            }`}
+          >
+            {attentionCount}
+          </div>
+        </div>
+
+        <div className="divide-y divide-slate-100">
+          {/* Pending Users */}
+          {pendingUserCount > 0 && (
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/admin/users")
+              }
+              className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-slate-50 sm:px-6"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50">
+                <Users
+                  size={19}
+                  className="text-amber-600"
+                />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-extrabold text-[#10233F]">
+                  {pendingUserCount} user
+                  {pendingUserCount === 1
+                    ? ""
+                    : "s"} waiting for approval
+                </p>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  Review new user registrations.
+                </p>
+              </div>
+
+              <ArrowRight
+                size={17}
+                className="shrink-0 text-slate-400"
+              />
+            </button>
+          )}
+
+          {/* Pending Question Reports */}
+          {pendingReportCount > 0 && (
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  "/admin/question-reports"
+                )
+              }
+              className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-slate-50 sm:px-6"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50">
+                <AlertTriangle
+                  size={19}
+                  className="text-red-600"
+                />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-extrabold text-[#10233F]">
+                  {pendingReportCount} new question
+                  {pendingReportCount === 1
+                    ? ""
+                    : "s"} reported
+                </p>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  Review reported questions from
+                  users.
+                </p>
+              </div>
+
+              <ArrowRight
+                size={17}
+                className="shrink-0 text-slate-400"
+              />
+            </button>
+          )}
+
+          {/* Nothing Pending */}
+          {pendingUserCount === 0 &&
+            pendingReportCount === 0 && (
+              <div className="px-6 py-8 text-center">
+                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-green-50">
+                  <CheckCircle2
+                    size={21}
+                    className="text-green-600"
+                  />
+                </div>
+
+                <p className="mt-3 text-sm font-bold text-[#10233F]">
+                  All caught up
+                </p>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  There are no pending approvals or
+                  reports.
+                </p>
+              </div>
+            )}
         </div>
       </section>
 
@@ -473,7 +745,9 @@ function AdminDashboard() {
 
           <button
             type="button"
-            onClick={() => navigate("/admin/users")}
+            onClick={() =>
+              navigate("/admin/users")
+            }
             className="hidden items-center gap-1 text-sm font-bold text-[#003B82] hover:text-[#009FE3] sm:flex"
           >
             View Users
@@ -490,10 +764,21 @@ function AdminDashboard() {
             <table className="w-full min-w-[650px]">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs font-bold uppercase tracking-wide text-slate-400">
-                  <th className="px-6 py-3">User</th>
-                  <th className="px-6 py-3">Email</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3">Registered</th>
+                  <th className="px-6 py-3">
+                    User
+                  </th>
+
+                  <th className="px-6 py-3">
+                    Email
+                  </th>
+
+                  <th className="px-6 py-3">
+                    Status
+                  </th>
+
+                  <th className="px-6 py-3">
+                    Registered
+                  </th>
                 </tr>
               </thead>
 
@@ -506,15 +791,18 @@ function AdminDashboard() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8F5FF] text-sm font-bold text-[#003B82]">
-                          {(user.full_name ||
+                          {(
+                            user.full_name ||
                             user.email ||
-                            "U")
+                            "U"
+                          )
                             .charAt(0)
                             .toUpperCase()}
                         </div>
 
                         <div className="font-semibold text-[#10233F]">
-                          {user.full_name || "No name"}
+                          {user.full_name ||
+                            "No name"}
                         </div>
                       </div>
                     </td>
@@ -524,11 +812,15 @@ function AdminDashboard() {
                     </td>
 
                     <td className="px-6 py-4">
-                      {getStatusBadge(user.status)}
+                      {getStatusBadge(
+                        user.status
+                      )}
                     </td>
 
                     <td className="px-6 py-4 text-sm text-slate-500">
-                      {formatDate(user.created_at)}
+                      {formatDate(
+                        user.created_at
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -556,7 +848,9 @@ function AdminDashboard() {
 
           <button
             type="button"
-            onClick={() => navigate("/admin/attempts")}
+            onClick={() =>
+              navigate("/admin/attempts")
+            }
             className="hidden items-center gap-1 text-sm font-bold text-[#003B82] hover:text-[#009FE3] sm:flex"
           >
             View Attempts
@@ -573,69 +867,98 @@ function AdminDashboard() {
             <table className="w-full min-w-[800px]">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-xs font-bold uppercase tracking-wide text-slate-400">
-                  <th className="px-6 py-3">Student</th>
-                  <th className="px-6 py-3">Test</th>
-                  <th className="px-6 py-3">Score</th>
-                  <th className="px-6 py-3">Correct</th>
-                  <th className="px-6 py-3">Date</th>
+                  <th className="px-6 py-3">
+                    Student
+                  </th>
+
+                  <th className="px-6 py-3">
+                    Test
+                  </th>
+
+                  <th className="px-6 py-3">
+                    Score
+                  </th>
+
+                  <th className="px-6 py-3">
+                    Correct
+                  </th>
+
+                  <th className="px-6 py-3">
+                    Date
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
-                {recentAttempts.map((attempt) => (
-                  <tr
-                    key={attempt.id}
-                    className="border-b border-slate-50 last:border-0 hover:bg-slate-50/70"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-[#10233F]">
-                        {attempt.userName}
-                      </div>
-                    </td>
+                {recentAttempts.map(
+                  (attempt) => (
+                    <tr
+                      key={attempt.id}
+                      className="border-b border-slate-50 last:border-0 hover:bg-slate-50/70"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-[#10233F]">
+                          {attempt.userName}
+                        </div>
+                      </td>
 
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-[#10233F]">
-                        {attempt.testTitle}
-                      </div>
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-[#10233F]">
+                          {attempt.testTitle}
+                        </div>
 
-                      {attempt.setNumber !== undefined &&
-                        attempt.setNumber !== null && (
-                          <div className="mt-0.5 text-xs text-slate-500">
-                            Set {attempt.setNumber}
-                          </div>
+                        {attempt.setNumber !==
+                          undefined &&
+                          attempt.setNumber !==
+                            null && (
+                            <div className="mt-0.5 text-xs text-slate-500">
+                              Set{" "}
+                              {attempt.setNumber}
+                            </div>
+                          )}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <span className="font-extrabold text-[#003B82]">
+                          {attempt.score}
+                        </span>
+
+                        <span className="text-sm text-slate-500">
+                          {" "}
+                          /{" "}
+                          {attempt.maximum_score}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-semibold text-green-600">
+                          {
+                            attempt.correct_answers
+                          }{" "}
+                          correct
+                        </div>
+
+                        <div className="mt-0.5 text-xs text-slate-500">
+                          {
+                            attempt.wrong_answers
+                          }{" "}
+                          wrong ·{" "}
+                          {
+                            attempt.unanswered_questions
+                          }{" "}
+                          unanswered
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-sm text-slate-500">
+                        {formatDate(
+                          attempt.submitted_at ||
+                            attempt.started_at
                         )}
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <span className="font-extrabold text-[#003B82]">
-                        {attempt.score}
-                      </span>
-
-                      <span className="text-sm text-slate-500">
-                        {" "}
-                        / {attempt.maximum_score}
-                      </span>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-semibold text-green-600">
-                        {attempt.correct_answers} correct
-                      </div>
-
-                      <div className="mt-0.5 text-xs text-slate-500">
-                        {attempt.wrong_answers} wrong ·{" "}
-                        {attempt.unanswered_questions} unanswered
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 text-sm text-slate-500">
-                      {formatDate(
-                        attempt.submitted_at ||
-                          attempt.started_at
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
           )}
