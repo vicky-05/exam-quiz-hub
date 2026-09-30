@@ -78,6 +78,7 @@ function QuestionPanel({
                 size={13}
                 className="text-[#F0A000] dark:text-[#FFAA1F]"
               />
+
               <span className="text-[9px] font-black uppercase tracking-[0.15em] text-[#64748B] dark:text-[#A8B4C5]">
                 Question
               </span>
@@ -142,7 +143,6 @@ function QuestionPanel({
           </div>
         </div>
       </div>
-
     </section>
   );
 }

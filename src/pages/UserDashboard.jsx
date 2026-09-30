@@ -123,7 +123,7 @@ function StatCard({
   iconClass = "bg-[#EAF7FF] dark:bg-[#102B43] text-[#009FE3]",
 }) {
   return (
-    <div className="group rounded-[22px] border border-[#E2E8F0] bg-white p-5 shadow-[0_8px_25px_rgba(16,35,63,0.05)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_35px_rgba(16,35,63,0.09)] dark:border-[#243A55] dark:bg-[#0D1B2E]">
+    <div className="group min-w-0 rounded-[22px] border border-[#E2E8F0] bg-white p-5 shadow-[0_8px_25px_rgba(16,35,63,0.05)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_35px_rgba(16,35,63,0.09)] dark:border-[#243A55] dark:bg-[#0D1B2E]">
       <div className="flex items-start justify-between gap-3">
         <div
           className={`flex h-12 w-12 items-center justify-center rounded-2xl ${iconClass}`}
@@ -138,7 +138,7 @@ function StatCard({
         {label}
       </p>
 
-      <p className="mt-1 text-3xl font-black tracking-tight text-[#10233F] dark:text-[#F4F7F6]">
+      <p className="mt-1 break-words text-3xl font-black tracking-tight text-[#10233F] dark:text-[#F4F7F6]">
         {value}
       </p>
 
@@ -163,17 +163,17 @@ function QuickAction({
   return (
     <Link
       to={to}
-      className={`group relative overflow-hidden rounded-[22px] border p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg ${className}`}
+      className={`group relative min-w-0 overflow-hidden rounded-[22px] border p-4 sm:p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg ${className}`}
     >
-      <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15 text-current dark:bg-white/10">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <div className="flex h-11 w-11 shrink-0 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-white/15 text-current dark:bg-white/10">
           {icon}
         </div>
 
         <div className="min-w-0">
-          <h3 className="text-base font-black">{title}</h3>
+          <h3 className="break-words text-base font-black">{title}</h3>
 
-          <p className="mt-1 text-xs leading-5 opacity-75">
+          <p className="mt-1 break-words text-xs leading-5 opacity-75">
             {description}
           </p>
         </div>
@@ -248,7 +248,7 @@ function DailyGoal({ progress }) {
           />
         </div>
 
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs font-semibold text-slate-400 dark:text-slate-500">
             {remaining > 0
               ? `${remaining} more test${
@@ -300,7 +300,7 @@ function StudyStreak({ streak }) {
         </span>
       </div>
 
-      <div className="mt-4 flex items-center justify-between rounded-xl bg-white/70 px-4 py-3 dark:bg-black/10">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/70 px-4 py-3 dark:bg-black/10">
         <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
           Best streak
         </span>
@@ -320,8 +320,8 @@ function StudyStreak({ streak }) {
 function PersonalBest({ stats }) {
   return (
     <section className="rounded-[26px] border border-[#E2E8F0] bg-white p-6 shadow-[0_8px_25px_rgba(16,35,63,0.05)] dark:border-[#243A55] dark:bg-[#0D1B2E]">
-      <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#EAF7FF] text-[#009FE3] dark:bg-[#102B43]">
+      <div className="flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#EAF7FF] text-[#009FE3] dark:bg-[#102B43]">
           <Trophy size={23} />
         </div>
 
@@ -588,7 +588,7 @@ function RecommendedTests({ tests }) {
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-black text-[#10233F] dark:text-[#F4F7F6]">
+                    <p className="break-words text-sm font-black text-[#10233F] dark:text-[#F4F7F6]">
                       {selectedTest.title}
                     </p>
 
@@ -814,8 +814,8 @@ function PerformanceSnapshot({ stats }) {
         </div>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-4">
-            <span className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="flex min-w-0 items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
               <span className="h-2.5 w-2.5 rounded-full bg-[#009FE3]" />
               Correct Answers
             </span>
@@ -825,8 +825,8 @@ function PerformanceSnapshot({ stats }) {
             </strong>
           </div>
 
-          <div className="flex items-center justify-between gap-4">
-            <span className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="flex min-w-0 items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
               <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
               Incorrect Answers
             </span>
@@ -836,8 +836,8 @@ function PerformanceSnapshot({ stats }) {
             </strong>
           </div>
 
-          <div className="flex items-center justify-between gap-4">
-            <span className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="flex min-w-0 items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400">
               <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
               Unattempted
             </span>
@@ -848,7 +848,7 @@ function PerformanceSnapshot({ stats }) {
           </div>
 
           <div className="mt-2 rounded-xl bg-[#FFF9E8] px-4 py-3 dark:bg-[#12243B]">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-black text-[#A56A00]">
                 Total Questions
               </span>
@@ -1712,7 +1712,7 @@ function UserDashboard() {
   ======================================================= */
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC] text-[#10233F] dark:bg-[#07111F] dark:text-[#F4F7F6]">
+    <div className="min-h-screen overflow-x-hidden bg-[#F7F9FC] text-[#10233F] dark:bg-[#07111F] dark:text-[#F4F7F6]">
       <Header />
 
       <main>
@@ -1725,7 +1725,7 @@ function UserDashboard() {
 
           <div className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-[#F6C400]/10 blur-3xl" />
 
-          <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+          <div className="relative mx-auto max-w-7xl px-3 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
             <div className="grid gap-7 lg:grid-cols-[1fr_300px] lg:items-center">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1740,7 +1740,7 @@ function UserDashboard() {
                   </span>
                 </div>
 
-                <h1 className="mt-5 text-4xl font-black tracking-[-0.05em] text-[#10233F] dark:text-[#F4F7F6] sm:text-5xl lg:text-[3.7rem]">
+                <h1 className="mt-5 break-words text-3xl font-black tracking-[-0.05em] text-[#10233F] dark:text-[#F4F7F6] sm:text-5xl lg:text-[3.7rem]">
                   Welcome back,
                   <span className="block text-[#009FE3]">
                     {displayName} 👋
@@ -1780,7 +1780,7 @@ function UserDashboard() {
                 </div>
               </div>
 
-              <div className="relative overflow-hidden rounded-[24px] bg-[#007CB5] p-6 text-white shadow-[0_15px_35px_rgba(0,107,79,0.2)]">
+              <div className="relative min-w-0 overflow-hidden rounded-[24px] bg-[#007CB5] p-5 sm:p-6 text-white shadow-[0_15px_35px_rgba(0,107,79,0.2)]">
                 <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-[#F6C400]/25 blur-2xl" />
 
                 <div className="relative">
@@ -1901,7 +1901,7 @@ function UserDashboard() {
           ================================================== */}
 
           <section className="mt-9">
-            <div className="mb-5 flex items-end justify-between gap-4">
+            <div className="mb-5 flex flex-col items-start gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A56A00]">
                   Next step
@@ -2004,7 +2004,7 @@ function UserDashboard() {
 
           <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_290px]">
             <section className="rounded-[26px] border border-[#E2E8F0] bg-white shadow-[0_8px_25px_rgba(16,35,63,0.05)] dark:border-[#243A55] dark:bg-[#0D1B2E]">
-              <div className="flex flex-col gap-3 border-b border-[#E2E8F0] px-6 py-5 dark:border-[#243A55] sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-3 border-b border-[#E2E8F0] px-4 py-5 sm:px-6 dark:border-[#243A55] sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#EAF7FF] text-[#009FE3] dark:bg-[#102B43]">
                     <History size={20} />
@@ -2031,7 +2031,7 @@ function UserDashboard() {
               </div>
 
               {recentAttempts.length === 0 ? (
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   <EmptyAttempts />
                 </div>
               ) : (
@@ -2074,14 +2074,14 @@ function UserDashboard() {
                         return (
                           <div
                             key={attempt.id}
-                            className="grid gap-3 px-5 py-4 md:grid-cols-[28px_1.7fr_0.9fr_0.7fr_0.7fr_0.6fr_0.6fr] md:items-center md:gap-4 md:px-6"
+                            className="grid min-w-0 gap-3 px-4 py-4 md:grid-cols-[28px_1.7fr_0.9fr_0.7fr_0.7fr_0.6fr_0.6fr] md:items-center md:gap-4 md:px-6"
                           >
                             <span className="hidden text-xs font-black text-slate-400 md:block">
                               {index + 1}
                             </span>
 
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-black text-[#10233F] dark:text-[#F4F7F6]">
+                              <p className="break-words text-sm font-black text-[#10233F] dark:text-[#F4F7F6]">
                                 {test?.title ||
                                   "Practice Test"}
                               </p>
@@ -2206,7 +2206,7 @@ function UserDashboard() {
               FOOTER MOTIVATION
           ================================================== */}
 
-          <section className="mt-8 overflow-hidden rounded-[24px] border border-[#F6C400]/15 bg-[#FFF9EC] px-6 py-5 text-center sm:px-8">
+          <section className="mt-8 min-w-0 overflow-hidden rounded-[24px] border border-[#F6C400]/15 bg-[#FFF9EC] px-6 py-5 text-center sm:px-8">
             <div className="flex flex-col items-center justify-center gap-2 sm:flex-row">
               <span className="text-2xl font-black text-[#F6C400]">
                 “
@@ -2227,7 +2227,7 @@ function UserDashboard() {
               ACCOUNT ACTION
           ================================================== */}
 
-          <div className="mt-7 flex flex-col gap-4 rounded-[22px] border border-[#E2E8F0] bg-white p-5 shadow-sm dark:border-[#243A55] dark:bg-[#0D1B2E] sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-7 flex min-w-0 flex-col gap-4 rounded-[22px] border border-[#E2E8F0] bg-white p-5 shadow-sm dark:border-[#243A55] dark:bg-[#0D1B2E] sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-black text-[#10233F] dark:text-[#F4F7F6]">
                 {user.email}

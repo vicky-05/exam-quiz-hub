@@ -1847,9 +1847,9 @@ function QuizPage() {
 
     return (
 
-      <div className="flex min-h-screen items-center justify-center bg-[#F6F1E7] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-[#F6F1E7] px-4 dark:bg-[#07111F]">
 
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg dark:border-[#243A55] dark:bg-[#0D1B2E]">
 
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-[#087A55]/20 border-t-[#087A55]" />
 
@@ -1857,7 +1857,7 @@ function QuizPage() {
             Loading Quiz
           </h1>
 
-          <p className="mt-2 text-sm leading-6 text-slate-500">
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-[#A8B4C5]">
             Loading the test and questions...
           </p>
 
@@ -1878,15 +1878,15 @@ function QuizPage() {
 
     return (
 
-      <div className="flex min-h-screen items-center justify-center bg-[#F6F1E7] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-[#F6F1E7] px-4 dark:bg-[#07111F]">
 
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg dark:border-[#243A55] dark:bg-[#0D1B2E]">
 
-          <h1 className="text-xl font-black text-[#10233F]">
+          <h1 className="text-xl font-black text-[#10233F] dark:text-white">
             Unable to Load Quiz
           </h1>
 
-          <p className="mt-2 text-sm leading-6 text-slate-500">
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-[#A8B4C5]">
             {loadError}
           </p>
 
@@ -1913,8 +1913,8 @@ function QuizPage() {
 
   if (test && questions.length > 0 && !examSessionReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F6F1E7] px-4">
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg">
+      <div className="flex min-h-screen items-center justify-center bg-[#F6F1E7] px-4 dark:bg-[#07111F]">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg dark:border-[#243A55] dark:bg-[#0D1B2E]">
           {examSessionError ? (
             <>
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
@@ -1925,7 +1925,7 @@ function QuizPage() {
                 Unable to Start Test
               </h1>
 
-              <p className="mt-2 text-sm leading-6 text-slate-500">
+              <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-[#A8B4C5]">
                 {examSessionError}
               </p>
 
@@ -1945,7 +1945,7 @@ function QuizPage() {
                 Securing Your Test
               </h1>
 
-              <p className="mt-2 text-sm leading-6 text-slate-500">
+              <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-[#A8B4C5]">
                 Checking your active exam session...
               </p>
             </>
@@ -1964,15 +1964,15 @@ function QuizPage() {
 
     return (
 
-      <div className="flex min-h-screen items-center justify-center bg-[#F6F1E7] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-[#F6F1E7] px-4 dark:bg-[#07111F]">
 
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg dark:border-[#243A55] dark:bg-[#0D1B2E]">
 
-          <h1 className="text-xl font-black text-[#10233F]">
+          <h1 className="text-xl font-black text-[#10233F] dark:text-white">
             Test Not Found
           </h1>
 
-          <p className="mt-2 text-sm leading-6 text-slate-500">
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-[#A8B4C5]">
             The quiz you are trying to
             access does not exist or is
             no longer available.
@@ -2005,15 +2005,15 @@ function QuizPage() {
 
     return (
 
-      <div className="flex min-h-screen items-center justify-center bg-[#F6F1E7] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-[#F6F1E7] px-4 dark:bg-[#07111F]">
 
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg dark:border-[#243A55] dark:bg-[#0D1B2E]">
 
-          <h1 className="text-xl font-black text-[#10233F]">
+          <h1 className="text-xl font-black text-[#10233F] dark:text-white">
             No Questions Available
           </h1>
 
-          <p className="mt-2 text-sm leading-6 text-slate-500">
+          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-[#A8B4C5]">
             This test has not been
             connected to a question set
             yet.
@@ -2044,7 +2044,7 @@ function QuizPage() {
 
   return (
 
-    <div className="flex h-screen flex-col overflow-hidden bg-[#F6F1E7]">
+    <div className="flex h-screen flex-col overflow-hidden bg-[#F6F1E7] dark:bg-[#07111F]">
 
 
       {/* =====================================================
@@ -2123,7 +2123,7 @@ function QuizPage() {
           MOBILE QUESTION PALETTE BUTTON
       ===================================================== */}
 
-      <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2 lg:hidden">
+      <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2 dark:border-[#243A55] dark:bg-[#0D1B2E] lg:hidden">
 
         <button
           type="button"
@@ -2134,7 +2134,7 @@ function QuizPage() {
           aria-expanded={
             showMobilePalette
           }
-          className="flex w-full items-center justify-between rounded-xl border border-[#10233F]/10 bg-[#FCFBF7] px-3 py-2.5 text-left transition active:scale-[0.99] hover:border-[#087A55]/30"
+          className="flex w-full items-center justify-between rounded-xl border border-[#10233F]/10 bg-[#FCFBF7] px-3 py-2.5 text-left transition active:scale-[0.99] hover:border-[#087A55]/30 dark:border-[#29425F] dark:bg-[#12243B] dark:hover:border-[#19B8F2]/30"
         >
 
           {/* LEFT */}
@@ -2147,11 +2147,11 @@ function QuizPage() {
 
             <div>
 
-              <p className="text-xs font-black text-[#10233F]">
+              <p className="text-xs font-black text-[#10233F] dark:text-white">
                 Questions
               </p>
 
-              <p className="text-[10px] font-semibold text-slate-500">
+              <p className="text-[10px] font-semibold text-slate-500 dark:text-[#A8B4C5]">
                 Navigate between questions
               </p>
 
@@ -2164,12 +2164,12 @@ function QuizPage() {
 
           <div className="flex items-center gap-2">
 
-            <span className="rounded-lg bg-[#F6F1E7] px-2.5 py-1.5 text-xs font-black text-[#10233F]">
+            <span className="rounded-lg bg-[#F6F1E7] px-2.5 py-1.5 text-xs font-black text-[#10233F] dark:bg-[#12243B] dark:text-white">
               {currentQuestionIndex + 1}/
               {questions.length}
             </span>
 
-            <span className="text-lg font-black text-[#087A55]">
+            <span className="text-lg font-black text-[#087A55] dark:text-[#19B8F2]">
               →
             </span>
 
@@ -2465,14 +2465,14 @@ function MobileQuestionPalette({
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-[#10233F]/50 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-[#10233F]/50 dark:bg-black/65 backdrop-blur-[2px]"
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Bottom sheet */}
       <section
-        className="absolute inset-x-0 bottom-0 flex h-[min(88dvh,720px)] flex-col overflow-hidden rounded-t-[24px] border-t border-white/60 bg-white shadow-[0_-18px_55px_rgba(16,35,63,0.22)]"
+        className="absolute inset-x-0 bottom-0 flex h-[min(88dvh,720px)] flex-col overflow-hidden rounded-t-[24px] border-t border-white/60 bg-white shadow-[0_-18px_55px_rgba(16,35,63,0.22)] dark:border-[#29425F] dark:bg-[#0D1B2E] dark:shadow-[0_-18px_55px_rgba(0,0,0,0.45)]"
         style={{
           paddingBottom:
             "env(safe-area-inset-bottom)",
@@ -2482,15 +2482,15 @@ function MobileQuestionPalette({
         }
       >
         {/* Header */}
-        <div className="shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3">
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200" />
+        <div className="shrink-0 border-b border-slate-200 bg-white px-4 pb-3 pt-3 dark:border-[#243A55] dark:bg-[#0D1B2E]">
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-slate-200 dark:bg-[#29425F]" />
 
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-black text-[#10233F]">
+              <h2 className="text-base font-black text-[#10233F] dark:text-white">
                 Question Palette
               </h2>
-              <p className="mt-0.5 text-[11px] font-medium text-slate-500">
+              <p className="mt-0.5 text-[11px] font-medium text-slate-500 dark:text-[#A8B4C5]">
                 Tap a number to jump to that question
               </p>
             </div>
@@ -2499,7 +2499,7 @@ function MobileQuestionPalette({
               type="button"
               onClick={onClose}
               aria-label="Close question palette"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-[#FCFBF7] text-slate-600 active:scale-95"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-[#FCFBF7] text-slate-600 active:scale-95 dark:border-[#29425F] dark:bg-[#12243B] dark:text-[#A8B4C5]"
             >
               <X size={18} />
             </button>
@@ -2507,27 +2507,27 @@ function MobileQuestionPalette({
         </div>
 
         {/* Status summary */}
-        <div className="shrink-0 border-b border-slate-200 bg-[#FCFBF7] px-4 py-3">
+        <div className="shrink-0 border-b border-slate-200 bg-[#FCFBF7] px-4 py-3 dark:border-[#243A55] dark:bg-[#12243B]">
           <div className="grid grid-cols-4 gap-2">
             <MobilePaletteStat
               value={statusCounts.answered}
               label="Answered"
-              className="bg-[#EEF7F1] text-[#087A55]"
+              className="bg-[#EEF7F1] text-[#087A55] dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]"
             />
             <MobilePaletteStat
               value={statusCounts.notAnswered}
               label="Pending"
-              className="bg-[#FFF8E8] text-[#946116]"
+              className="bg-[#FFF8E8] text-[#946116] dark:bg-[#FFD23F]/10 dark:text-[#FFD23F]"
             />
             <MobilePaletteStat
               value={statusCounts.marked}
               label="Marked"
-              className="bg-purple-50 text-purple-600"
+              className="bg-purple-50 text-purple-600 dark:bg-[#8B5CF6]/15 dark:text-[#B79AFF]"
             />
             <MobilePaletteStat
               value={statusCounts.notVisited}
               label="Unvisited"
-              className="bg-slate-100 text-slate-500"
+              className="bg-slate-100 text-slate-500 dark:bg-[#12243B] dark:text-[#A8B4C5]"
             />
           </div>
         </div>
@@ -2535,10 +2535,10 @@ function MobileQuestionPalette({
         {/* Questions */}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500 dark:text-[#A8B4C5]">
               All Questions
             </p>
-            <span className="rounded-lg bg-[#F6F1E7] px-2.5 py-1 text-[10px] font-black text-[#10233F]">
+            <span className="rounded-lg bg-[#F6F1E7] px-2.5 py-1 text-[10px] font-black text-[#10233F] dark:bg-[#12243B] dark:text-white">
               {currentQuestionIndex + 1}/{totalQuestions}
             </span>
           </div>
@@ -2586,9 +2586,9 @@ function MobileQuestionPalette({
         </div>
 
         {/* Bottom hint */}
-        <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-3">
+        <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-3 dark:border-[#243A55] dark:bg-[#0D1B2E]">
           <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] leading-4 text-slate-400">
+            <p className="text-[10px] leading-4 text-slate-400 dark:text-[#7F8FA3]">
               Question {currentQuestionIndex + 1} is currently selected.
             </p>
 

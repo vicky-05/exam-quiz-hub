@@ -120,7 +120,7 @@ function Breadcrumb({ exam, track }) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className="flex items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400"
+      className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-500 dark:text-slate-400"
     >
       <Link to="/" className="transition hover:text-[#009FE3]">
         Home
@@ -148,7 +148,7 @@ function Breadcrumb({ exam, track }) {
 
 function StatPill({ icon: Icon, label, value }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-[#243A55] dark:bg-[#0D1B2E]">
+    <div className="flex min-w-0 flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 dark:border-[#243A55] dark:bg-[#0D1B2E]">
       <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#EAF6FD] text-[#003B82] dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]">
         <Icon size={17} />
       </span>
@@ -225,7 +225,7 @@ function ExamSelector({ exam }) {
             <div className="relative">
               <div className="rounded-[30px] bg-[#001F4F] p-1 shadow-[0_24px_70px_rgba(0,31,79,0.18)] dark:bg-[#16345C]">
                 <div className="rounded-[26px] border border-white/10 bg-[#0D2A52] p-6 sm:p-7">
-                  <div className="flex items-start justify-between">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FFD23F]">
                         Preparation roadmap
@@ -244,7 +244,7 @@ function ExamSelector({ exam }) {
                       (step, index) => (
                         <div
                           key={step}
-                          className="flex items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.06] p-3.5"
+                          className="flex min-w-0 flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3.5 sm:flex-nowrap sm:gap-4"
                         >
                           <span
                             className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-black ${
@@ -255,7 +255,7 @@ function ExamSelector({ exam }) {
                           >
                             {String(index + 1).padStart(2, "0")}
                           </span>
-                          <span className="text-sm font-bold text-white/90">
+                          <span className="min-w-0 flex-1 break-words text-sm font-bold text-white/90">
                             {step}
                           </span>
                           {index === 0 && (
@@ -300,13 +300,13 @@ function ExamSelector({ exam }) {
               >
                 <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-[70px] bg-[#EAF6FD] transition group-hover:bg-[#009FE3]/10 dark:bg-[#19B8F2]/5" />
 
-                <div className="relative flex items-start gap-5">
+                <div className="relative flex flex-wrap items-start gap-4 sm:flex-nowrap sm:gap-5">
                   <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-[#001F4F] text-sm font-black text-[#FFD23F] dark:bg-[#16345C]">
                     {String(index + 1).padStart(2, "0")}
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex min-w-0 flex-wrap items-start justify-between gap-3 sm:flex-nowrap sm:gap-4">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#009FE3]">
                           Examination path
@@ -375,7 +375,7 @@ function ExamSelector({ exam }) {
                     {mock.title}
                   </h3>
 
-                  <div className="mt-5 grid grid-cols-2 gap-3">
+                  <div className="mt-5 grid grid-cols-1 gap-3 min-[380px]:grid-cols-2">
                     <StatPill
                       icon={BookOpen}
                       label="Questions"

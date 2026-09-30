@@ -38,6 +38,7 @@ import SupabaseTest from "./components/SupabaseTest";
 import SupabaseHierarchyTest from "./components/SupabaseHierarchyTest";
 import HomePage from "./pages/HomePage";
 
+
 function App() {
   return (
     <AuthProvider>
@@ -175,6 +176,8 @@ function App() {
             </ProtectedRoute>
           }
         />
+
+        
 
 
         {/* =========================
