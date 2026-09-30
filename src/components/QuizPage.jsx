@@ -564,6 +564,10 @@ function QuizPage() {
 
   const autoSubmitTriggeredRef = useRef(false);
 
+  // Stores the real quiz start time so attempt duration is based on actual
+  // elapsed time instead of React countdown state.
+  const quizStartedAtRef = useRef(null);
+
 
   /*
     Mobile Question Palette drawer.
@@ -904,16 +908,35 @@ function QuizPage() {
     }
 
     let endTime;
+    let startedAt;
 
     try {
       const stored = sessionStorage.getItem(activeQuizKey);
       const parsed = stored ? JSON.parse(stored) : {};
 
-      endTime = Number(parsed?.endTime);
+      const storedStartedAt = Number(parsed?.startedAt);
+      const storedEndTime = Number(parsed?.endTime);
+      const durationMs =
+        Number(test.durationMinutes || 60) * 60 * 1000;
+
+      if (Number.isFinite(storedStartedAt) && storedStartedAt > 0) {
+        // Continue the original quiz start time after refresh/restoration.
+        startedAt = storedStartedAt;
+      } else if (Number.isFinite(storedEndTime) && storedEndTime > 0) {
+        // Backward compatibility for an in-progress quiz created before
+        // startedAt was stored: reconstruct it from the existing end time.
+        startedAt = storedEndTime - durationMs;
+      } else {
+        // Brand-new quiz. Start timing now.
+        startedAt = Date.now();
+      }
+
+      quizStartedAtRef.current = startedAt;
+
+      endTime = storedEndTime;
 
       if (!Number.isFinite(endTime) || endTime <= 0) {
-        endTime =
-          Date.now() + Number(test.durationMinutes || 60) * 60 * 1000;
+        endTime = startedAt + durationMs;
       }
 
       const updateState = () => {
@@ -935,6 +958,7 @@ function QuizPage() {
               version: 1,
               test,
               questions,
+              startedAt,
               endTime,
               remainingTime: remaining,
               activeState: {
@@ -1547,16 +1571,23 @@ function QuizPage() {
         correctAnswers -
         wrongAnswers;
 
-      const effectiveTimeRemaining =
-        forcedTimeRemaining !== null
-          ? Number(forcedTimeRemaining)
-          : Number(timeRemaining || 0);
+      /*
+        Calculate elapsed time from the actual quiz start timestamp.
+        This is independent of React state updates and remains accurate
+        after re-renders and page restoration.
+      */
+      const submissionTimeMs = Date.now();
+      const quizStartedAt = Number(quizStartedAtRef.current);
 
-      const timeTakenSeconds = Math.max(
-        0,
-        Number(test.durationMinutes || 0) * 60 -
-        effectiveTimeRemaining
-      );
+      const timeTakenSeconds =
+        Number.isFinite(quizStartedAt) && quizStartedAt > 0
+          ? Math.max(
+              0,
+              Math.floor(
+                (submissionTimeMs - quizStartedAt) / 1000
+              )
+            )
+          : 0;
 
       /*
         1. Create the parent attempt row.
@@ -1567,6 +1598,11 @@ function QuizPage() {
           .insert({
             user_id: user.id,
             test_id: test.id,
+            started_at: new Date(
+              Number.isFinite(quizStartedAt) && quizStartedAt > 0
+                ? quizStartedAt
+                : submissionTimeMs
+            ).toISOString(),
             submitted_at: submittedAt,
             time_taken_seconds: timeTakenSeconds,
             total_questions: questions.length,
@@ -1655,6 +1691,8 @@ function QuizPage() {
         markedQuestions: markedCount,
         score,
         maximumScore,
+        timeTakenSeconds,
+        quizStartedAt: quizStartedAt > 0 ? quizStartedAt : null,
         questionSnapshots: questions.map((question) => ({
           id: question.id,
           testId: question.testId,
