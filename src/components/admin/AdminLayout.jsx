@@ -11,6 +11,7 @@ import {
   GraduationCap,
   Layers3,
   BookOpen,
+  FileText,
   HelpCircle,
   AlertTriangle,
   ClipboardList,
@@ -66,6 +67,16 @@ const AdminLayout = () => {
       name: "Subjects",
       path: "/admin/subjects",
       icon: BookOpen,
+    },
+    {
+      name: "Study Material Subjects",
+      path: "/admin/study-material-subjects",
+      icon: FileText,
+    },
+    {
+      name: "Study Materials",
+      path: "/admin/study-materials",
+      icon: FileText,
     },
     {
       name: "Question Bank",

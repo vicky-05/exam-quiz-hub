@@ -8,7 +8,7 @@ import {
 } from "../services/examService";
 
 import { exams as localExams } from "../data/exams";
-
+import LearningHub from "./LearningHub";
 import {
   ArrowRight,
   Award,
@@ -247,11 +247,10 @@ function ExamSelector({ exam }) {
                           className="flex min-w-0 flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3.5 sm:flex-nowrap sm:gap-4"
                         >
                           <span
-                            className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-black ${
-                              index === 0
+                            className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-black ${index === 0
                                 ? "bg-[#FFD23F] text-[#001F4F]"
                                 : "bg-white/10 text-white/70"
-                            }`}
+                              }`}
                           >
                             {String(index + 1).padStart(2, "0")}
                           </span>
@@ -518,7 +517,11 @@ function TrackDashboard({ exam, track }) {
           </div>
         </div>
       </section>
-
+      <LearningHub
+        exam={exam}
+        track={track}
+        subjectCount={subjects.length}
+      />
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
         <div className="flex flex-col gap-4 border-b border-slate-200 pb-7 dark:border-[#243A55] sm:flex-row sm:items-end sm:justify-between">
           <div>
