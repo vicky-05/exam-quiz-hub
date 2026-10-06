@@ -121,6 +121,8 @@ function QuizPage() {
   const isCustomQuiz = !isMockTest && searchParams.get("custom") === "1";
   const isRetryWrongQuiz =
     !isMockTest && searchParams.get("retry") === "1";
+  const isRetryCustomQuiz =
+    !isMockTest && searchParams.get("retryCustom") === "1";
   const requestedCustomCount = Number(searchParams.get("count") || 0);
   const questionOrder =
     searchParams.get("order") === "random" ||
@@ -160,9 +162,11 @@ function QuizPage() {
           : `practice-${subjectId || "unknown"}-${setId || "unknown"}`
       }-${isRetryWrongQuiz
         ? `retry-wrong-${requestedCustomCount}`
-        : isCustomQuiz
-          ? `custom-${requestedCustomCount}`
-          : "standard"
+        : isRetryCustomQuiz
+          ? `retry-custom-${requestedCustomCount}`
+          : isCustomQuiz
+            ? `custom-${requestedCustomCount}`
+            : "standard"
       }-${questionOrder}`,
     [
       examId,
@@ -173,6 +177,7 @@ function QuizPage() {
       isMockTest,
       isCustomQuiz,
       isRetryWrongQuiz,
+      isRetryCustomQuiz,
       requestedCustomCount,
       questionOrder,
     ]
@@ -389,8 +394,19 @@ function QuizPage() {
 
         let orderedQuestions = [];
 
-        if (isRetryWrongQuiz) {
+        /*
+         * Retry modes must use the exact question IDs from the previous
+         * attempt. This keeps a custom 25-question quiz at 25 questions
+         * instead of selecting 25 new questions from the full source set.
+         */
+        const isExactRetryQuiz =
+          isRetryWrongQuiz || isRetryCustomQuiz;
+
+        if (isExactRetryQuiz) {
           let retryQuestionIds = [];
+          const expectedRetryMode = isRetryWrongQuiz
+            ? "retry-wrong"
+            : "retry-custom";
 
           try {
             const launchData = sessionStorage.getItem(
@@ -402,7 +418,7 @@ function QuizPage() {
               : null;
 
             if (
-              parsedLaunchData?.mode === "retry-wrong" &&
+              parsedLaunchData?.mode === expectedRetryMode &&
               Array.isArray(parsedLaunchData.questionIds)
             ) {
               retryQuestionIds = parsedLaunchData.questionIds;
@@ -416,7 +432,9 @@ function QuizPage() {
 
           if (retryQuestionIds.length === 0) {
             throw new Error(
-              "Unable to load the wrong questions for retry."
+              isRetryWrongQuiz
+                ? "Unable to load the wrong questions for retry."
+                : "Unable to load the questions from the previous custom quiz."
             );
           }
 
@@ -428,13 +446,21 @@ function QuizPage() {
             retryIdSet.has(String(question.id))
           );
 
+          if (orderedQuestions.length !== retryIdSet.size) {
+            throw new Error(
+              "Some questions from the previous quiz are no longer available."
+            );
+          }
+
           if (questionOrder === "random") {
             orderedQuestions = shuffleArray(orderedQuestions);
           }
 
           if (orderedQuestions.length === 0) {
             throw new Error(
-              "The wrong questions could not be found."
+              isRetryWrongQuiz
+                ? "The wrong questions could not be found."
+                : "The previous custom questions could not be found."
             );
           }
         } else {
@@ -445,7 +471,7 @@ function QuizPage() {
         }
 
         const finalQuestions =
-          isRetryWrongQuiz
+          isExactRetryQuiz
             ? orderedQuestions
             : isCustomQuiz && customCount < orderedQuestions.length
               ? orderedQuestions.slice(0, customCount)
@@ -460,7 +486,7 @@ function QuizPage() {
           setTest(finalTest);
           setQuestions(finalQuestions);
 
-          if (isRetryWrongQuiz) {
+          if (isExactRetryQuiz) {
             try {
               sessionStorage.removeItem(
                 `quiz-launch-${selectedTest.id}`
