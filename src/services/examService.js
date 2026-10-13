@@ -15,12 +15,14 @@ export async function getExams() {
 export async function getTracks(examId) {
   const { data, error } = await supabase
     .from("tracks")
-    .select(`
+    .select(
+      `
       id,
       exam_id,
       name,
       description
-    `)
+    `,
+    )
     .eq("exam_id", examId)
     .eq("active", true)
     .order("name");
@@ -33,13 +35,15 @@ export async function getTracks(examId) {
 export async function getSubjects(trackId) {
   const { data, error } = await supabase
     .from("subjects")
-    .select(`
+    .select(
+      `
       id,
       track_id,
       name,
       description,
       display_order
-    `)
+    `,
+    )
     .eq("track_id", trackId)
     .eq("active", true)
     .order("display_order");
@@ -51,8 +55,9 @@ export async function getSubjects(trackId) {
 
 export async function getTests(subjectId) {
   const { data, error } = await supabase
-    .from("tests")
-    .select(`
+    .from("practice_test_catalog")
+    .select(
+      `
       id,
       subject_id,
       track_id,
@@ -63,10 +68,10 @@ export async function getTests(subjectId) {
       marks_per_question,
       negative_marks,
       test_type
-    `)
+    `,
+    )
     .eq("subject_id", subjectId)
     .eq("test_type", "practice")
-    .eq("active", true)
     .order("set_number");
 
   if (error) throw error;
@@ -94,7 +99,8 @@ export async function getTests(subjectId) {
 export async function getMockTests() {
   const { data, error } = await supabase
     .from("tests")
-    .select(`
+    .select(
+      `
       id,
       track_id,
       title,
@@ -104,7 +110,8 @@ export async function getMockTests() {
       marks_per_question,
       negative_marks,
       test_type
-    `)
+    `,
+    )
     .eq("test_type", "mock")
     .eq("active", true)
     .order("set_number");
@@ -117,7 +124,8 @@ export async function getMockTests() {
 export async function getQuestions(testId) {
   const { data, error } = await supabase
     .from("questions")
-    .select(`
+    .select(
+      `
       id,
       test_id,
       question_text,
@@ -125,12 +133,12 @@ export async function getQuestions(testId) {
       option_b,
       option_c,
       option_d,
-      correct_answer,
       question_type,
       marks,
       negative_marks,
       display_order
-    `)
+    `,
+    )
     .eq("test_id", testId)
     .eq("active", true)
     .order("display_order");

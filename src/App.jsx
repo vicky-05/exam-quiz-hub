@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 
 import UserDashboard from "./pages/UserDashboard";
+import SubscriptionPage from "./pages/SubscriptionPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ProfilePage from "./pages/ProfilePage";
 import AttemptsPage from "./pages/AttemptsPage";
@@ -33,6 +34,7 @@ import AdminMotivation from "./pages/admin/AdminMotivation";
 import AdminSettings from "./pages/admin/AdminSettings";
 import QuestionReportsPage from "./pages/admin/QuestionReportsPage";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
+import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 
 import MotivationPage from "./pages/MotivationPage";
 
@@ -146,6 +148,15 @@ function App() {
           element={
             <ProtectedRoute>
               <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard/subscription"
+          element={
+            <ProtectedRoute>
+              <SubscriptionPage />
             </ProtectedRoute>
           }
         />
@@ -381,6 +392,12 @@ function App() {
           <Route
             path="questions/bulk-upload"
             element={<AdminBulkQuestions />}
+          />
+
+          {/* Subscription Management */}
+          <Route
+            path="subscriptions"
+            element={<AdminSubscriptions />}
           />
 
           {/* Edit Question */}

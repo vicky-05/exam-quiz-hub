@@ -159,7 +159,7 @@ function QuestionReportsPage() {
         supabase
           .from("questions")
           .select(
-            "id, question_text, option_a, option_b, option_c, option_d, correct_answer"
+            "id, question_text, option_a, option_b, option_c, option_d"
           )
           .in("id", questionIds),
 
@@ -170,13 +170,13 @@ function QuestionReportsPage() {
 
         userIds.length
           ? supabase
-              .from("profiles")
-              .select("id, full_name, email")
-              .in("id", userIds)
+            .from("profiles")
+            .select("id, full_name, email")
+            .in("id", userIds)
           : Promise.resolve({
-              data: [],
-              error: null,
-            }),
+            data: [],
+            error: null,
+          }),
       ]);
 
       if (questionsError) {
@@ -234,7 +234,7 @@ function QuestionReportsPage() {
 
       setError(
         loadError?.message ||
-          "Unable to load question reports."
+        "Unable to load question reports."
       );
     } finally {
       setLoading(false);
@@ -425,9 +425,9 @@ function QuestionReportsPage() {
         current.map((report) =>
           report.id === selectedReport.id
             ? {
-                ...report,
-                ...payload,
-              }
+              ...report,
+              ...payload,
+            }
             : report
         )
       );
@@ -435,9 +435,9 @@ function QuestionReportsPage() {
       setSelectedReport((current) =>
         current
           ? {
-              ...current,
-              ...payload,
-            }
+            ...current,
+            ...payload,
+          }
           : current
       );
     } catch (updateError) {
@@ -448,7 +448,7 @@ function QuestionReportsPage() {
 
       setError(
         updateError?.message ||
-          "Unable to update this report."
+        "Unable to update this report."
       );
     } finally {
       setUpdatingId("");
@@ -514,11 +514,10 @@ function QuestionReportsPage() {
             onClick={() =>
               setActiveTab(tab.key)
             }
-            className={`rounded-2xl border p-4 text-left transition ${
-              activeTab === tab.key
+            className={`rounded-2xl border p-4 text-left transition ${activeTab === tab.key
                 ? "border-[#009FE3] bg-[#EAF6FD] shadow-sm dark:border-[#19B8F2] dark:bg-[#19B8F2]/10"
                 : "border-slate-100 bg-white hover:border-slate-200 hover:shadow-sm dark:border-[#243A55] dark:bg-[#0D1B2E]"
-            }`}
+              }`}
           >
             <p className="text-xs font-bold text-slate-500 dark:text-[#A8B4C5]">
               {tab.label}
@@ -707,7 +706,7 @@ function QuestionReportsPage() {
           onMouseDown={(event) => {
             if (
               event.target ===
-                event.currentTarget &&
+              event.currentTarget &&
               !updatingId
             ) {
               closeReport();
@@ -849,15 +848,14 @@ function QuestionReportsPage() {
                       ) => (
                         <div
                           key={index}
-                          className={`rounded-xl border px-3 py-2.5 text-xs font-semibold ${
-                            Number(
-                              selectedReport
-                                .question
-                                .correct_answer
-                            ) === index
+                          className={`rounded-xl border px-3 py-2.5 text-xs font-semibold ${Number(
+                            selectedReport
+                              .question
+                              .correct_answer
+                          ) === index
                               ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-300"
                               : "border-slate-100 bg-slate-50 text-slate-600 dark:border-[#243A55] dark:bg-[#12243B] dark:text-[#D8E1EC]"
-                          }`}
+                            }`}
                         >
                           <span className="mr-2 font-black">
                             {getOptionLabel(
@@ -953,12 +951,12 @@ function QuestionReportsPage() {
                 disabled={
                   Boolean(updatingId) ||
                   selectedReport.status ===
-                    "under_review"
+                  "under_review"
                 }
                 className="rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-[10px] font-black text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-300"
               >
                 {updatingId ===
-                selectedReport.id
+                  selectedReport.id
                   ? "Saving..."
                   : "Under Review"}
               </button>

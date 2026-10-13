@@ -31,11 +31,7 @@ import ReportQuestionModal from "./ReportQuestionModal";
 import { useEffect, useState } from "react";
 
 import {
-
   getTests as getSupabaseTests,
-
-  getQuestions as getSupabaseQuestions,
-
 } from "../services/examService";
 
 import { supabase } from "../services/supabase";
@@ -386,31 +382,128 @@ function ResultPage() {
 
 
 
+
         const answerQuestionIds = new Set(
-
-          (answerRows || []).map((row) => row.question_id)
-
+          (answerRows || []).map((row) => String(row.question_id))
         );
 
+        // Load completed-attempt questions and answers securely.
+        const {
+          data: reviewData,
+          error: reviewError,
+        } = await supabase.rpc("get_attempt_review", {
+          p_attempt_id: attemptRow.id,
+        });
 
+        if (reviewError) {
+          throw reviewError;
+        }
+
+        const reviewQuestions = Array.isArray(reviewData?.questions)
+          ? reviewData.questions
+          : [];
+
+        if (reviewQuestions.length === 0) {
+          throw new Error(
+            "No question review data was found for this completed attempt."
+          );
+        }
+
+        const savedSnapshots = (
+          savedAttempt?.questionSnapshots || []
+        ).filter((question) =>
+          answerQuestionIds.has(String(question.id))
+        );
+
+        // Preserve shuffled options when a browser snapshot exists.
+        // Otherwise, use the original database option order.
+        const questionSnapshots = reviewQuestions
+          .filter((question) =>
+            answerQuestionIds.has(String(question.question_id))
+          )
+          .sort(
+            (a, b) =>
+              Number(a.display_order ?? 0) -
+              Number(b.display_order ?? 0)
+          )
+          .map((dbQuestion) => {
+            const questionId = String(dbQuestion.question_id);
+
+            const savedQuestion = savedSnapshots.find(
+              (question) => String(question.id) === questionId
+            );
+
+            const originalOptionIndexes =
+              Array.isArray(savedQuestion?.originalOptionIndexes) &&
+                savedQuestion.originalOptionIndexes.length === 4
+                ? savedQuestion.originalOptionIndexes
+                : [0, 1, 2, 3];
+
+            const originalCorrectAnswer = Number(
+              dbQuestion.correct_answer
+            );
+
+            const correctUiIndex = originalOptionIndexes.indexOf(
+              originalCorrectAnswer
+            );
+
+            const options = savedQuestion?.options || [
+              dbQuestion.option_a,
+              dbQuestion.option_b,
+              dbQuestion.option_c,
+              dbQuestion.option_d,
+            ];
+
+            return {
+              ...(savedQuestion || {}),
+              id: questionId,
+              testId: dbQuestion.test_id,
+              question:
+                savedQuestion?.question ?? dbQuestion.question_text,
+              q: savedQuestion?.q ?? dbQuestion.question_text,
+              text: savedQuestion?.text ?? dbQuestion.question_text,
+              options,
+              correctAnswer: correctUiIndex,
+              answer: correctUiIndex,
+              ans: correctUiIndex,
+              originalOptionIndexes,
+              originalCorrectAnswer,
+              marks: Number(
+                savedQuestion?.marks ?? dbQuestion.marks ?? 1
+              ),
+              negativeMarks: Number(
+                savedQuestion?.negativeMarks ??
+                dbQuestion.negative_marks ??
+                0
+              ),
+              type:
+                savedQuestion?.type ??
+                dbQuestion.question_type ??
+                "single",
+              displayOrder: Number(dbQuestion.display_order ?? 0),
+            };
+          });
+
+        if (questionSnapshots.length === 0) {
+          throw new Error(
+            "The questions for this attempt could not be loaded."
+          );
+        }
 
         const snapshotMap = new Map(
-
-          (savedAttempt?.questionSnapshots || []).map(
-
-            (question) => [question.id, question]
-
-          )
-
+          questionSnapshots.map((question) => [
+            String(question.id),
+            question,
+          ])
         );
 
 
 
-        let questionSnapshots = (savedAttempt?.questionSnapshots || []).filter(
 
-          (question) => answerQuestionIds.has(question.id)
 
-        );
+
+
+
 
 
 
@@ -552,7 +645,9 @@ function ResultPage() {
 
         (answerRows || []).forEach((row) => {
 
-          const question = snapshotMap.get(row.question_id);
+          const question = snapshotMap.get(
+            String(row.question_id)
+          );
 
           let uiAnswer = row.selected_answer;
 
@@ -908,9 +1003,9 @@ function ResultPage() {
 
             question.marks ??
 
-              test.marksPerQuestion ??
+            test.marksPerQuestion ??
 
-              4
+            4
 
           );
 
@@ -946,9 +1041,9 @@ function ResultPage() {
 
           question.negativeMarks ??
 
-            test.negativeMarks ??
+          test.negativeMarks ??
 
-            1
+          1
 
         );
 
@@ -1004,23 +1099,23 @@ function ResultPage() {
 
         : questions.reduce(
 
-            (total, question) =>
+          (total, question) =>
 
-              total +
+            total +
 
-              Number(
+            Number(
 
-                question.marks ??
+              question.marks ??
 
-                  test.marksPerQuestion ??
+              test.marksPerQuestion ??
 
-                  1
+              1
 
-              ),
+            ),
 
-            0
+          0
 
-          );
+        );
 
 
 
@@ -1030,9 +1125,9 @@ function ResultPage() {
 
         ? Math.round(
 
-            (correct / attempted) * 100
+          (correct / attempted) * 100
 
-          )
+        )
 
         : 0;
 
@@ -2116,15 +2211,13 @@ function ResultPage() {
 
                       onClick={() => setReviewFilter(key)}
 
-                      className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[10px] font-black transition ${
+                      className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[10px] font-black transition ${active
 
-                        active
+                        ? "bg-[#003B82] text-white shadow-sm dark:bg-[#19B8F2] dark:text-[#07111F]"
 
-                          ? "bg-[#003B82] text-white shadow-sm dark:bg-[#19B8F2] dark:text-[#07111F]"
+                        : "text-slate-500 hover:bg-white hover:text-[#003B82] dark:text-[#A8B4C5] dark:hover:bg-[#12243B] dark:hover:text-[#19B8F2]"
 
-                          : "text-slate-500 hover:bg-white hover:text-[#003B82] dark:text-[#A8B4C5] dark:hover:bg-[#12243B] dark:hover:text-[#19B8F2]"
-
-                      }`}
+                        }`}
 
                     >
 
@@ -2132,15 +2225,13 @@ function ResultPage() {
 
                       <span
 
-                        className={`rounded-full px-1.5 py-0.5 text-[9px] ${
+                        className={`rounded-full px-1.5 py-0.5 text-[9px] ${active
 
-                          active
+                          ? "bg-white/15"
 
-                            ? "bg-white/15"
+                          : "bg-slate-200 text-slate-500 dark:bg-[#243A55] dark:text-[#A8B4C5]"
 
-                            : "bg-slate-200 text-slate-500 dark:bg-[#243A55] dark:text-[#A8B4C5]"
-
-                        }`}
+                          }`}
 
                       >
 

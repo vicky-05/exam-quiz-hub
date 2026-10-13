@@ -1,10 +1,70 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { LockKeyhole, FileText, Clock, ArrowRight } from "lucide-react";
 import Header from "../components/Header";
 import { supabase } from "../services/supabase";
+import { useAuth } from "../context/AuthContext";
 
 const StudyMaterialSubjectPage = () => {
   const { examId, trackId, subjectSlug } = useParams();
+
+  const navigate = useNavigate();
+  const { user, profile } = useAuth();
+
+  const [canAccessMaterials, setCanAccessMaterials] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+
+  const isAdmin =
+    profile?.role === "admin" &&
+    profile?.status === "approved";
+
+  const checkMaterialAccess = async () => {
+    setCheckingAccess(true);
+
+    try {
+      if (!user?.id) {
+        setCanAccessMaterials(false);
+        return;
+      }
+
+      if (isAdmin) {
+        setCanAccessMaterials(true);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("user_subscriptions")
+        .select(`
+        id,
+        status,
+        starts_at,
+        expires_at,
+        request_id,
+        subscription_requests!inner (
+          status,
+          plan_id
+        )
+      `)
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .eq("subscription_requests.status", "approved")
+        .eq(
+          "subscription_requests.plan_id",
+          "d6063bb8-1db1-4cb7-bd08-7ab286a3207d"
+        )
+        .lte("starts_at", new Date().toISOString())
+        .gt("expires_at", new Date().toISOString());
+
+      if (error) throw error;
+
+      setCanAccessMaterials((data || []).length > 0);
+    } catch (err) {
+      console.error("Study material access check failed:", err);
+      setCanAccessMaterials(false);
+    } finally {
+      setCheckingAccess(false);
+    }
+  };
 
   const [exam, setExam] = useState(null);
   const [track, setTrack] = useState(null);
@@ -18,6 +78,14 @@ const StudyMaterialSubjectPage = () => {
   useEffect(() => {
     loadSubjectMaterials();
   }, [examId, trackId, subjectSlug]);
+
+  useEffect(() => {
+    loadSubjectMaterials();
+  }, [examId, trackId, subjectSlug]);
+
+  useEffect(() => {
+    checkMaterialAccess();
+  }, [user?.id, profile?.role, profile?.status]);
 
   const loadSubjectMaterials = async () => {
     try {
@@ -110,7 +178,7 @@ const StudyMaterialSubjectPage = () => {
 
       setError(
         err?.message ||
-          "Unable to load the study materials."
+        "Unable to load the study materials."
       );
     } finally {
       setLoading(false);
@@ -363,65 +431,108 @@ const StudyMaterialSubjectPage = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredMaterials.map((material) => (
-              <Link
-                key={material.id}
-                to={`/study-materials/${examId}/${trackId}/${subjectSlug}/${material.id}`}
-                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-[#009FE3]/40 hover:shadow-lg dark:border-gray-700 dark:bg-[#101E33] dark:hover:border-[#19B8F2]/40"
-              >
-                {/* PDF icon + badge */}
-                <div className="mb-5 flex items-center justify-between">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-2xl dark:bg-red-900/20">
-                    📄
+            {filteredMaterials.map((material) => {
+              const isLocked = !canAccessMaterials && !isAdmin;
+
+              return (
+                <button
+                  key={material.id}
+                  type="button"
+                  onClick={() => {
+                    if (isLocked) {
+                      navigate("/dashboard/subscription");
+                      return;
+                    }
+
+                    navigate(
+                      `/study-materials/${examId}/${trackId}/${subjectSlug}/${material.id}`
+                    );
+                  }}
+                  disabled={checkingAccess}
+                  className={`group relative w-full overflow-hidden rounded-2xl border bg-white p-5 text-left shadow-sm transition duration-200 dark:bg-[#101E33] ${isLocked
+                      ? "border-amber-200 hover:border-amber-400 hover:shadow-md dark:border-amber-900/50"
+                      : "border-gray-200 hover:-translate-y-1 hover:border-[#009FE3]/40 hover:shadow-lg dark:border-gray-700 dark:hover:border-[#19B8F2]/40"
+                    }`}
+                >
+                  {/* PDF icon and access badge */}
+                  <div className="mb-5 flex items-center justify-between">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-300">
+                      <FileText size={27} />
+                    </div>
+
+                    {isLocked ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                        <LockKeyhole size={14} />
+                        Premium
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600 dark:bg-red-900/20 dark:text-red-300">
+                        PDF
+                      </span>
+                    )}
                   </div>
 
-                  <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600 dark:bg-red-900/20 dark:text-red-300">
-                    PDF
-                  </span>
-                </div>
+                  {/* Title */}
+                  <h3 className="line-clamp-2 min-h-[56px] text-lg font-bold text-[#10233F] transition dark:text-white">
+                    {material.title}
+                  </h3>
 
-                {/* Title */}
-                <h3 className="line-clamp-2 min-h-[56px] text-lg font-bold text-[#10233F] transition group-hover:text-[#003B82] dark:text-white dark:group-hover:text-[#19B8F2]">
-                  {material.title}
-                </h3>
+                  {/* Description */}
+                  <p className="mt-2 line-clamp-2 min-h-[40px] text-sm leading-5 text-gray-500 dark:text-gray-400">
+                    {material.description ||
+                      "Study this PDF material for your exam preparation."}
+                  </p>
 
-                {/* Description */}
-                <p className="mt-2 line-clamp-2 min-h-[40px] text-sm leading-5 text-gray-500 dark:text-gray-400">
-                  {material.description ||
-                    "Study this PDF material for your exam preparation."}
-                </p>
+                  {/* Metadata */}
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {material.estimated_minutes > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                        <Clock size={13} />
+                        {material.estimated_minutes} min
+                      </span>
+                    )}
 
-                {/* Metadata */}
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {material.estimated_minutes > 0 && (
-                    <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                      ⏱ {material.estimated_minutes} min
+                    {material.file_size_bytes && (
+                      <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                        {formatFileSize(material.file_size_bytes)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Bottom action */}
+                  <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-4 dark:border-gray-700">
+                    <span className="max-w-[65%] truncate text-xs text-gray-400 dark:text-gray-500">
+                      {material.pdf_file_name || "PDF Document"}
                     </span>
-                  )}
 
-                  {material.file_size_bytes && (
-                    <span className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                      {formatFileSize(material.file_size_bytes)}
+                    <span
+                      className={`inline-flex items-center gap-1.5 text-sm font-bold ${isLocked
+                          ? "text-amber-700 dark:text-amber-300"
+                          : "text-[#003B82] dark:text-[#19B8F2]"
+                        }`}
+                    >
+                      {isLocked ? (
+                        <>
+                          <LockKeyhole size={15} />
+                          Unlock
+                        </>
+                      ) : (
+                        <>
+                          Open
+                          <ArrowRight size={15} />
+                        </>
+                      )}
                     </span>
+                  </div>
+
+                  {isLocked && (
+                    <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+                      Included with 3-Month Premium
+                    </p>
                   )}
-                </div>
-
-                {/* Bottom */}
-                <div className="mt-5 flex items-center justify-between border-t border-gray-100 pt-4 dark:border-gray-700">
-                  <span className="max-w-[65%] truncate text-xs text-gray-400 dark:text-gray-500">
-                    {material.pdf_file_name || "PDF Document"}
-                  </span>
-
-                  <span className="flex items-center gap-1 text-sm font-bold text-[#003B82] transition group-hover:gap-2 dark:text-[#19B8F2]">
-                    Open
-                    <span>→</span>
-                  </span>
-                </div>
-
-                {/* Decorative element */}
-                <div className="absolute -bottom-8 -right-8 h-24 w-24 rounded-full bg-[#009FE3]/5 transition group-hover:bg-[#009FE3]/10" />
-              </Link>
-            ))}
+                </button>
+              );
+            })}
           </div>
         )}
 

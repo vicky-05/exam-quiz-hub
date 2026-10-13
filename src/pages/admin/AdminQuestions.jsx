@@ -29,6 +29,9 @@ function AdminQuestions() {
     const [activeQuestions, setActiveQuestions] = useState(0);
     const [inactiveQuestions, setInactiveQuestions] = useState(0);
 
+    const [filteredQuestionCount, setFilteredQuestionCount] =
+    useState(0);
+
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [testFilter, setTestFilter] = useState("all");
@@ -143,80 +146,34 @@ function AdminQuestions() {
             setError("");
 
             const from = (page - 1) * PAGE_SIZE;
-            const to = from + PAGE_SIZE - 1;
-
-            let query = supabase
-                .from("questions")
-                .select(
-                    `
-            id,
-            test_id,
-            question_text,
-            option_a,
-            option_b,
-            option_c,
-            option_d,
-            correct_answer,
-            question_type,
-            marks,
-            negative_marks,
-            display_order,
-            active,
-            created_at
-          `,
-                    {
-                        count: "exact",
-                    }
-                )
-                .order("display_order", {
-                    ascending: true,
-                })
-                .range(from, to);
-
-            /*
-             * Search question text
-             */
-            if (search.trim()) {
-                query = query.ilike(
-                    "question_text",
-                    `%${search.trim()}%`
-                );
-            }
-
-            /*
-             * Status filter
-             */
-            if (statusFilter === "active") {
-                query = query.eq("active", true);
-            }
-
-            if (statusFilter === "inactive") {
-                query = query.eq("active", false);
-            }
-
-            /*
-             * Test filter
-             */
-            if (testFilter !== "all") {
-                query = query.eq("test_id", testFilter);
-            }
 
             const {
-                data,
+                data: result,
                 error: questionsError,
-                count,
-            } = await query;
+            } = await supabase.rpc("admin_list_questions", {
+                p_search: search.trim() || null,
+                p_active:
+                    statusFilter === "active"
+                        ? true
+                        : statusFilter === "inactive"
+                            ? false
+                            : null,
+                p_test_id:
+                    testFilter === "all" ? null : testFilter,
+                p_limit: PAGE_SIZE,
+                p_offset: from,
+            });
 
             if (questionsError) {
                 throw questionsError;
             }
 
-            setQuestions(data || []);
+            const data = result?.data || [];
+            const count = Number(result?.count || 0);
 
-            /*
-             * The count here is the filtered result count.
-             * We don't overwrite the overall dashboard count.
-             */
+            setQuestions(data);
+            setFilteredQuestionCount(count);
+
             if (count === 0 && page > 1) {
                 setPage(1);
             }
@@ -224,11 +181,11 @@ function AdminQuestions() {
             console.error("Questions loading failed:", err);
 
             setError(
-                err?.message ||
-                "Unable to load questions."
+                err?.message || "Unable to load questions."
             );
 
             setQuestions([]);
+            setFilteredQuestionCount(0);
         } finally {
             setLoading(false);
         }

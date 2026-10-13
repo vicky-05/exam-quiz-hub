@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
+  Crown,
   Flame,
   History,
   LogOut,
@@ -14,6 +15,10 @@ import {
   Trophy,
   TrendingUp,
   UserRound,
+  CalendarClock,
+  RefreshCw,
+  ShieldCheck,
+  AlertCircle,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
@@ -251,9 +256,8 @@ function DailyGoal({ progress }) {
         <div className="mt-3 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs font-semibold text-slate-400 dark:text-slate-500">
             {remaining > 0
-              ? `${remaining} more test${
-                  remaining > 1 ? "s" : ""
-                } to complete today's goal`
+              ? `${remaining} more test${remaining > 1 ? "s" : ""
+              } to complete today's goal`
               : "🎉 Daily goal completed!"}
           </p>
 
@@ -447,13 +451,12 @@ function WeakSubjectAnalysis({ subjects }) {
                 </span>
 
                 <span
-                  className={`shrink-0 text-xs font-black ${
-                    percentage < 60
-                      ? "text-red-500"
-                      : percentage < 75
-                        ? "text-[#A56A00]"
-                        : "text-[#009FE3]"
-                  }`}
+                  className={`shrink-0 text-xs font-black ${percentage < 60
+                    ? "text-red-500"
+                    : percentage < 75
+                      ? "text-[#A56A00]"
+                      : "text-[#009FE3]"
+                    }`}
                 >
                   {percentage}%
                 </span>
@@ -461,13 +464,12 @@ function WeakSubjectAnalysis({ subjects }) {
 
               <div className="h-2.5 overflow-hidden rounded-full bg-[#E2E8F0] dark:bg-[#243A55]">
                 <div
-                  className={`h-full rounded-full ${
-                    percentage < 60
-                      ? "bg-red-400"
-                      : percentage < 75
-                        ? "bg-[#F6C400]"
-                        : "bg-[#009FE3]"
-                  }`}
+                  className={`h-full rounded-full ${percentage < 60
+                    ? "bg-red-400"
+                    : percentage < 75
+                      ? "bg-[#F6C400]"
+                      : "bg-[#009FE3]"
+                    }`}
                   style={{
                     width: `${percentage}%`,
                   }}
@@ -511,9 +513,9 @@ function RecommendedTests({ tests }) {
 
   const testUrl =
     selectedTest?.examId &&
-    selectedTest?.track?.id &&
-    selectedTest?.subject?.id &&
-    selectedTest?.set_number
+      selectedTest?.track?.id &&
+      selectedTest?.subject?.id &&
+      selectedTest?.set_number
       ? `/exam/${selectedTest.examId}/${selectedTest.track.id}/${selectedTest.subject.id}/set-${selectedTest.set_number}`
       : "/";
 
@@ -652,7 +654,7 @@ function PerformanceChart({ attempts }) {
       (chartAttempts.length === 1
         ? usableWidth / 2
         : (index / (chartAttempts.length - 1)) *
-          usableWidth);
+        usableWidth);
 
     const score = getScorePercentage(attempt);
     const y =
@@ -674,11 +676,9 @@ function PerformanceChart({ attempts }) {
     )
     .join(" ");
 
-  const area = `${line} L ${
-    points[points.length - 1].x
-  } ${height - paddingY} L ${points[0].x} ${
-    height - paddingY
-  } Z`;
+  const area = `${line} L ${points[points.length - 1].x
+    } ${height - paddingY} L ${points[0].x} ${height - paddingY
+    } Z`;
 
   return (
     <div className="overflow-hidden">
@@ -945,6 +945,212 @@ function ErrorDashboard({ message, onRetry }) {
   );
 }
 
+
+function SubscriptionOverview({ subscription, latestRequest, loading }) {
+  if (loading) {
+    return (
+      <section className="mt-6 animate-pulse rounded-[24px] border border-slate-200 bg-white p-5 dark:border-[#243A55] dark:bg-[#0D1B2E]">
+        <div className="h-5 w-48 rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="mt-3 h-4 w-64 max-w-full rounded bg-slate-100 dark:bg-slate-800" />
+      </section>
+    );
+  }
+
+  const now = Date.now();
+
+  const expiry = subscription?.expires_at
+    ? new Date(subscription.expires_at).getTime()
+    : 0;
+
+  const isActive =
+    String(subscription?.status || "").toLowerCase() === "active" &&
+    expiry > now;
+
+  const daysRemaining = isActive
+    ? Math.max(0, Math.ceil((expiry - now) / 86400000))
+    : 0;
+
+  // Show the warning during the final 7 days.
+  const isExpiringSoon = isActive && daysRemaining <= 7;
+
+  const requestStatus = String(
+    latestRequest?.status || ""
+  ).toLowerCase();
+
+  const isPending = requestStatus === "pending";
+  const isRejected = requestStatus === "rejected";
+  const isExpired = Boolean(subscription) && !isActive;
+
+  let config;
+
+  if (isActive) {
+    config = {
+      title: isExpiringSoon
+        ? `Your Premium expires in ${daysRemaining} ${daysRemaining === 1 ? "day" : "days"
+        }`
+        : "Your Premium is active",
+
+      description: isExpiringSoon
+        ? "Renew now to keep your premium preparation uninterrupted."
+        : `You have ${daysRemaining} days of Premium access remaining.`,
+
+      badge: isExpiringSoon ? "Expiring soon" : "Active",
+
+      icon: isExpiringSoon
+        ? <AlertCircle size={23} />
+        : <Crown size={23} />,
+
+      theme: isExpiringSoon
+        ? "border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30"
+        : "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/30",
+
+      accent: isExpiringSoon
+        ? "text-amber-800 dark:text-amber-300"
+        : "text-emerald-800 dark:text-emerald-300",
+
+      button: isExpiringSoon
+        ? "Renew Subscription"
+        : "Manage Subscription",
+
+      buttonIcon: <RefreshCw size={16} />,
+    };
+  } else if (isPending) {
+    config = {
+      title: "Payment verification in progress",
+
+      description:
+        "Your latest payment request is awaiting administrator verification. You don't need to submit the same payment again.",
+
+      badge: "Pending review",
+      icon: <Clock3 size={23} />,
+
+      theme:
+        "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30",
+
+      accent: "text-amber-800 dark:text-amber-300",
+
+      button: "View Payment Status",
+      buttonIcon: <ShieldCheck size={16} />,
+    };
+  } else if (isRejected) {
+    config = {
+      title: "Payment request needs attention",
+
+      description:
+        latestRequest?.admin_note ||
+        "Your latest payment request was rejected. Review the details before submitting another request.",
+
+      badge: "Action required",
+      icon: <AlertCircle size={23} />,
+
+      theme:
+        "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30",
+
+      accent: "text-red-800 dark:text-red-300",
+
+      button: "Review Subscription",
+      buttonIcon: <ArrowRight size={16} />,
+    };
+  } else if (isExpired) {
+    config = {
+      title: "Your Premium has expired",
+
+      description:
+        "Renew your subscription to continue accessing Premium features.",
+
+      badge: "Expired",
+      icon: <Clock3 size={23} />,
+
+      theme:
+        "border-slate-200 bg-white dark:border-[#243A55] dark:bg-[#0D1B2E]",
+
+      accent: "text-slate-700 dark:text-slate-200",
+
+      button: "Renew Subscription",
+      buttonIcon: <RefreshCw size={16} />,
+    };
+  } else {
+    config = {
+      title: "Unlock Premium for your preparation",
+
+      description:
+        "Choose a subscription plan for Premium test sets and, with the three-month plan, study materials.",
+
+      badge: "Free plan",
+      icon: <Crown size={23} />,
+
+      theme:
+        "border-[#009FE3]/20 bg-gradient-to-r from-[#EEF7FF] to-white dark:border-[#243A55] dark:from-[#102B43] dark:to-[#0D1B2E]",
+
+      accent: "text-[#003B82] dark:text-sky-300",
+
+      button: "Explore Premium Plans",
+      buttonIcon: <ArrowRight size={16} />,
+    };
+  }
+
+  return (
+    <section
+      className={`mt-6 rounded-[24px] border p-5 shadow-sm transition-colors duration-300 sm:p-6 ${config.theme}`}
+    >
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-start gap-4">
+          <div
+            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/80 dark:bg-black/10 ${config.accent}`}
+          >
+            {config.icon}
+          </div>
+
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2
+                className={`text-lg font-black ${config.accent}`}
+                role={isExpiringSoon ? "alert" : undefined}
+              >
+                {config.title}
+              </h2>
+
+              <span className="rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-black dark:bg-black/10">
+                {config.badge}
+              </span>
+            </div>
+
+            <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              {config.description}
+            </p>
+
+            {isActive && (
+              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs font-bold text-slate-500 dark:text-slate-400">
+                <span className="inline-flex items-center gap-1.5">
+                  <CalendarClock size={15} />
+                  Expires {formatDate(subscription.expires_at)}
+                </span>
+
+                <span className="inline-flex items-center gap-1.5">
+                  <ShieldCheck size={15} />
+                  Admin verified
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <Link
+          to="/dashboard/subscription"
+          className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 hover:shadow-lg ${isExpiringSoon
+            ? "bg-amber-600 hover:bg-amber-700"
+            : "bg-gradient-to-r from-[#003B82] to-[#009FE3] hover:from-[#002D63] hover:to-[#007CB5]"
+            }`}
+        >
+          {config.buttonIcon}
+          {config.button}
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+
 /* =========================================================
    USER DASHBOARD
 ========================================================= */
@@ -966,6 +1172,10 @@ function UserDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [signingOut, setSigningOut] = useState(false);
+
+  const [subscription, setSubscription] = useState(null);
+  const [latestRequest, setLatestRequest] = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
 
   /* =======================================================
      LOAD DASHBOARD
@@ -1278,7 +1488,7 @@ function UserDashboard() {
 
             const track = subject?.track_id
               ? recommendationTrackMap[subject.track_id] ||
-                null
+              null
               : null;
 
             return {
@@ -1299,7 +1509,7 @@ function UserDashboard() {
 
       setError(
         err?.message ||
-          "Something went wrong while loading your dashboard."
+        "Something went wrong while loading your dashboard."
       );
     } finally {
       setLoading(false);
@@ -1311,6 +1521,80 @@ function UserDashboard() {
       loadDashboard();
     }
   }, [authLoading, user?.id]);
+
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSubscriptionSummary() {
+      if (authLoading || !user?.id) {
+        if (!authLoading && cancelled === false) {
+          setSubscriptionLoading(false);
+        }
+        return;
+      }
+
+      setSubscriptionLoading(true);
+
+      try {
+        const [
+          { data: subscriptionRows, error: subscriptionError },
+          { data: requestRows, error: requestError },
+        ] = await Promise.all([
+          supabase
+            .from("user_subscriptions")
+            .select("id, request_id, starts_at, expires_at, status, created_at")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false }),
+
+          supabase
+            .from("subscription_requests")
+            .select("id, plan_id, amount_inr, status, admin_note, created_at, reviewed_at")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false }),
+        ]);
+
+        if (subscriptionError) throw subscriptionError;
+        if (requestError) throw requestError;
+
+        if (cancelled) return;
+
+        const subscriptions = subscriptionRows || [];
+        const requests = requestRows || [];
+
+        const currentTime = Date.now();
+
+        const activeSubscription = subscriptions.find(
+          (item) =>
+            String(item.status || "").toLowerCase() === "active" &&
+            item.expires_at &&
+            new Date(item.expires_at).getTime() > currentTime
+        );
+
+        // Prefer an active subscription; otherwise show the latest record.
+        setSubscription(activeSubscription || subscriptions[0] || null);
+        setLatestRequest(requests[0] || null);
+      } catch (err) {
+        console.error("Could not load subscription summary:", err);
+
+        if (!cancelled) {
+          setSubscription(null);
+          setLatestRequest(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setSubscriptionLoading(false);
+        }
+      }
+    }
+
+    loadSubscriptionSummary();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user?.id]);
+
 
   /* =======================================================
      STATS
@@ -1373,8 +1657,8 @@ function UserDashboard() {
 
     const averageAccuracy = questionsAttempted
       ? Math.round(
-          (totalCorrect / questionsAttempted) * 100
-        )
+        (totalCorrect / questionsAttempted) * 100
+      )
       : 0;
 
     const bestScore = attempts.reduce(
@@ -1406,12 +1690,12 @@ function UserDashboard() {
 
     const averageScore = totalTests
       ? Math.round(
-          attempts.reduce(
-            (total, attempt) =>
-              total + getScorePercentage(attempt),
-            0
-          ) / totalTests
-        )
+        attempts.reduce(
+          (total, attempt) =>
+            total + getScorePercentage(attempt),
+          0
+        ) / totalTests
+      )
       : 0;
 
     return {
@@ -1810,8 +2094,8 @@ function UserDashboard() {
                   <p className="mt-3 text-xs leading-5 text-white/65">
                     {latestAttempt
                       ? `Your latest score was ${getScorePercentage(
-                          latestAttempt
-                        )}%. Keep pushing your benchmark higher.`
+                        latestAttempt
+                      )}%. Keep pushing your benchmark higher.`
                       : "Start your first test and build your performance record."}
                   </p>
                 </div>
@@ -1829,7 +2113,15 @@ function UserDashboard() {
               STATISTICS
           ================================================== */}
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mb-5">
+            <SubscriptionOverview
+              subscription={subscription}
+              latestRequest={latestRequest}
+              loading={subscriptionLoading}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
             <StatCard
               icon={<BookOpen size={22} />}
               label="Total Tests Attempted"
@@ -1959,6 +2251,13 @@ function UserDashboard() {
                 description="Check your progress and insights."
                 className="border-[#009FE3]/10 bg-[#EAF7FF] text-[#10233F] dark:bg-[#102B43] dark:text-[#F4F7F6]"
               />
+              <QuickAction
+                to="/dashboard/subscription"
+                icon={<Crown size={22} />}
+                title="Premium Subscription"
+                description="Choose a plan and track your payment."
+                className="border-[#009FE3]/20 bg-[#EAF7FF] text-[#10233F] dark:bg-[#102B43] dark:text-[#F4F7F6]"
+              />
             </div>
           </section>
 
@@ -2065,9 +2364,9 @@ function UserDashboard() {
 
                         const resultUrl =
                           test?.examId &&
-                          test?.track?.id &&
-                          test?.subject?.id &&
-                          test?.set_number
+                            test?.track?.id &&
+                            test?.subject?.id &&
+                            test?.set_number
                             ? `/exam/${test.examId}/${test.track.id}/result/${test.subject.id}/set-${test.set_number}?attemptId=${attempt.id}`
                             : null;
 
@@ -2118,13 +2417,12 @@ function UserDashboard() {
                             </span>
 
                             <span
-                              className={`w-fit rounded-full px-2.5 py-1 text-xs font-black ${
-                                accuracy >= 80
-                                  ? "bg-[#009FE3]/10 text-[#009FE3]"
-                                  : accuracy >= 60
-                                    ? "bg-[#F6C400]/10 text-[#A56A00]"
-                                    : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                              }`}
+                              className={`w-fit rounded-full px-2.5 py-1 text-xs font-black ${accuracy >= 80
+                                ? "bg-[#009FE3]/10 text-[#009FE3]"
+                                : accuracy >= 60
+                                  ? "bg-[#F6C400]/10 text-[#A56A00]"
+                                  : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                                }`}
                             >
                               {accuracy}%
                             </span>

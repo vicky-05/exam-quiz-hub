@@ -43,44 +43,36 @@ import {
    changing the visible option order for every quiz load.
 ========================================================= */
 
-function shuffleQuestionOptions(question) {
-  const options = [...(question.options || [])];
-  const correctIndex = Number(question.correctAnswer);
 
-  const indexedOptions = options.map((option, index) => ({
-    option,
-    originalIndex: index,
-  }));
+function shuffleQuestionOptions(question) {
+  const indexedOptions = (question.options || []).map(
+    (option, originalIndex) => ({
+      option,
+      originalIndex,
+    })
+  );
 
   // Fisher-Yates shuffle
   for (let i = indexedOptions.length - 1; i > 0; i -= 1) {
     const j = Math.floor(Math.random() * (i + 1));
+
     [indexedOptions[i], indexedOptions[j]] = [
       indexedOptions[j],
       indexedOptions[i],
     ];
   }
 
-  const shuffledCorrectIndex =
-    indexedOptions.findIndex(
-      (item) => item.originalIndex === correctIndex
-    );
-
   return {
     ...question,
     options: indexedOptions.map((item) => item.option),
-    correctAnswer: shuffledCorrectIndex,
-    ans: shuffledCorrectIndex,
 
-    // Maps the displayed/shuffled option index back to the
-    // original database option index (0 = A, 1 = B, etc.).
+    // Shuffled UI index -> original database option index
     originalOptionIndexes: indexedOptions.map(
       (item) => item.originalIndex
     ),
-
-    originalCorrectAnswer: correctIndex,
   };
 }
+
 
 
 /* =========================================================
@@ -126,7 +118,7 @@ function QuizPage() {
   const requestedCustomCount = Number(searchParams.get("count") || 0);
   const questionOrder =
     searchParams.get("order") === "random" ||
-    (isCustomQuiz && !searchParams.has("order"))
+      (isCustomQuiz && !searchParams.has("order"))
       ? "random"
       : "sequential";
 
@@ -156,10 +148,9 @@ function QuizPage() {
   // the browser recreates the page/tab.
   const activeQuizKey = useMemo(
     () =>
-      `active-quiz-${examId || "unknown"}-${trackId || "unknown"}-${
-        isMockTest
-          ? `mock-${mockId || "unknown"}`
-          : `practice-${subjectId || "unknown"}-${setId || "unknown"}`
+      `active-quiz-${examId || "unknown"}-${trackId || "unknown"}-${isMockTest
+        ? `mock-${mockId || "unknown"}`
+        : `practice-${subjectId || "unknown"}-${setId || "unknown"}`
       }-${isRetryWrongQuiz
         ? `retry-wrong-${requestedCustomCount}`
         : isRetryCustomQuiz
@@ -292,12 +283,12 @@ function QuizPage() {
 
         const customDurationMinutes = isCustomQuiz
           ? Math.max(
-              1,
-              Math.ceil(
-                (sourceDurationMinutes * customCount) /
-                  Math.max(sourceTotalQuestions, 1)
-              )
+            1,
+            Math.ceil(
+              (sourceDurationMinutes * customCount) /
+              Math.max(sourceTotalQuestions, 1)
             )
+          )
           : sourceDurationMinutes;
 
         const formattedTest = {
@@ -335,58 +326,48 @@ function QuizPage() {
             selectedTest.id
           );
 
-        const formattedQuestions =
-          (questionData || [])
-            .sort(
-              (a, b) =>
-                Number(a.display_order || 0) -
-                Number(b.display_order || 0)
-            )
-            .map((question) =>
-              shuffleQuestionOptions({
-                id: question.id,
-                testId: question.test_id,
-                question: question.question_text,
-                q: question.question_text,
-                text: question.question_text,
 
-                options: [
-                  question.option_a,
-                  question.option_b,
-                  question.option_c,
-                  question.option_d,
-                ],
+        const formattedQuestions = (questionData || [])
+          .sort(
+            (a, b) =>
+              Number(a.display_order || 0) -
+              Number(b.display_order || 0)
+          )
+          .map((question) =>
+            shuffleQuestionOptions({
+              id: question.id,
+              testId: question.test_id,
+              question: question.question_text,
+              q: question.question_text,
+              text: question.question_text,
 
-                correctAnswer:
-                  Number(question.correct_answer),
+              options: [
+                question.option_a,
+                question.option_b,
+                question.option_c,
+                question.option_d,
+              ],
 
-                ans:
-                  Number(question.correct_answer),
+              marks: Number(
+                question.marks ??
+                selectedTest.marks_per_question ??
+                1
+              ),
 
-                marks:
-                  Number(
-                    question.marks ??
-                    selectedTest.marks_per_question ??
-                    1
-                  ),
+              negativeMarks: Number(
+                question.negative_marks ??
+                selectedTest.negative_marks ??
+                0
+              ),
 
-                negativeMarks:
-                  Number(
-                    question.negative_marks ??
-                    selectedTest.negative_marks ??
-                    0
-                  ),
+              type: question.question_type || "single",
 
-                type:
-                  question.question_type ||
-                  "single",
+              displayOrder: Number(
+                question.display_order || 0
+              ),
+            })
+          );
 
-                displayOrder:
-                  Number(
-                    question.display_order || 0
-                  ),
-              })
-            );
 
         /* =========================================================
            QUESTION SELECTION
@@ -614,9 +595,9 @@ function QuizPage() {
         setCurrentQuestionIndex(
           Number.isInteger(state.currentQuestionIndex)
             ? Math.min(
-                Math.max(state.currentQuestionIndex, 0),
-                questions.length - 1
-              )
+              Math.max(state.currentQuestionIndex, 0),
+              questions.length - 1
+            )
             : 0
         );
         setAnswers(state.answers || {});
@@ -851,7 +832,7 @@ function QuizPage() {
           sessionData?.id ||
           (Array.isArray(sessionData)
             ? sessionData[0]?.active_exam_session_id ||
-              sessionData[0]?.id
+            sessionData[0]?.id
             : null);
 
         if (!activeExamSessionId) {
@@ -890,7 +871,7 @@ function QuizPage() {
         } else {
           setExamSessionError(
             error?.message ||
-              "Unable to start the secure exam session. Please try again."
+            "Unable to start the secure exam session. Please try again."
           );
         }
 
@@ -1099,9 +1080,9 @@ function QuizPage() {
     questionStatuses,
   ]);
 
-    /* =========================================================
-     BROWSER BACK / EXIT PROTECTION
-  ========================================================= */
+  /* =========================================================
+   BROWSER BACK / EXIT PROTECTION
+========================================================= */
 
   useEffect(() => {
     if (!test || !questions.length || !quizHydrated) {
@@ -1585,18 +1566,10 @@ function QuizPage() {
      SUBMIT TEST
   ========================================================= */
 
+
   const handleSubmitTest = async (forcedTimeRemaining = null) => {
-
-    if (!test || savingAttempt) {
-      return;
-    }
-
-    /*
-      A quiz attempt belongs to a logged-in user.
-    */
-    if (authLoading) {
-      return;
-    }
+    if (!test || savingAttempt) return;
+    if (authLoading) return;
 
     if (!user) {
       setShowSubmitModal(false);
@@ -1612,47 +1585,8 @@ function QuizPage() {
 
     setSavingAttempt(true);
 
-    const submittedAt = new Date().toISOString();
-
     try {
-
-      /*
-        Calculate final statistics from the shuffled UI state.
-      */
-      let correctAnswers = 0;
-      let wrongAnswers = 0;
-      let score = 0;
-
-      const maximumScore = questions.reduce(
-        (total, question) =>
-          total + Number(question.marks ?? 1),
-        0
-      );
-
-      questions.forEach((question) => {
-        const selectedIndex = answers[question.id];
-
-        if (
-          !Number.isInteger(selectedIndex) ||
-          selectedIndex < 0 ||
-          selectedIndex >= question.options.length
-        ) {
-          return;
-        }
-
-        if (selectedIndex === question.correctAnswer) {
-          correctAnswers += 1;
-          score += Number(question.marks ?? 1);
-        } else {
-          wrongAnswers += 1;
-          score -= Number(question.negativeMarks ?? 0);
-        }
-      });
-
-      const unattemptedQuestions =
-        questions.length -
-        correctAnswers -
-        wrongAnswers;
+      const submittedAt = new Date().toISOString();
 
       const effectiveTimeRemaining =
         forcedTimeRemaining !== null
@@ -1665,103 +1599,79 @@ function QuizPage() {
         effectiveTimeRemaining
       );
 
-      /*
-        1. Create the parent attempt row.
-      */
-      const { data: attemptRow, error: attemptError } =
-        await supabase
-          .from("test_attempts")
-          .insert({
-            user_id: user.id,
-            test_id: test.id,
-            submitted_at: submittedAt,
-            time_taken_seconds: timeTakenSeconds,
-            total_questions: questions.length,
-            answered_questions: answeredCount,
-            correct_answers: correctAnswers,
-            wrong_answers: wrongAnswers,
-            unanswered_questions: unattemptedQuestions,
-            marked_questions: markedCount,
-            score,
-            maximum_score: maximumScore,
-          })
-          .select("id")
-          .single();
+      // Send original DB option indexes, not shuffled UI indexes.
+      const attemptAnswers = questions.map((question, index) => {
+        const selectedIndex = answers[question.id];
 
-      if (attemptError) {
-        throw attemptError;
-      }
+        const isAnswered =
+          Number.isInteger(selectedIndex) &&
+          selectedIndex >= 0 &&
+          selectedIndex < question.options.length;
 
-      /*
-        2. Save one answer row for every question.
+        return {
+          question_id: question.id,
+          selected_answer: isAnswered
+            ? (
+              question.originalOptionIndexes?.[selectedIndex] ??
+              selectedIndex
+            )
+            : null,
+          marked_for_review: Boolean(markedForReview[index]),
+        };
+      });
 
-        selected_answer is stored using the ORIGINAL database
-        option index, not the shuffled UI index.
-      */
-      const attemptAnswers = questions.map(
-        (question, index) => {
-          const selectedIndex = answers[question.id];
-
-          const isAnswered =
-            Number.isInteger(selectedIndex) &&
-            selectedIndex >= 0 &&
-            selectedIndex < question.options.length;
-
-          const originalSelectedAnswer = isAnswered
-            ? question.originalOptionIndexes?.[selectedIndex] ??
-            selectedIndex
-            : null;
-
-          const isCorrect = isAnswered
-            ? selectedIndex === question.correctAnswer
-            : null;
-
-          return {
-            attempt_id: attemptRow.id,
-            question_id: question.id,
-            selected_answer: originalSelectedAnswer,
-            is_correct: isCorrect,
-            marked_for_review: !!markedForReview[index],
-            answered_at: isAnswered
-              ? submittedAt
-              : null,
-          };
-        }
+      const safeTimeTakenSeconds = Math.max(
+        0,
+        Math.floor(Number(timeTakenSeconds) || 0)
       );
 
-      const { error: answersError } =
-        await supabase
-          .from("attempt_answers")
-          .insert(attemptAnswers);
+      const { data, error } = await supabase.rpc("submit_quiz_attempt", {
+        p_test_id: test.id,
+        p_answers: attemptAnswers,
+        p_time_taken_seconds: safeTimeTakenSeconds,
+      });
 
-      if (answersError) {
-        throw answersError;
+      if (error) {
+        console.error("Quiz submission error:", error);
+        throw error;
       }
 
-      /*
-        Keep the client snapshot for ResultPage.
-        This preserves the shuffled option order and correct
-        answer index used during this particular attempt.
-      */
+      const resultData = Array.isArray(data) ? data[0] : data;
+
+      const attemptId = resultData?.attempt_id;
+
+      if (!attemptId) {
+        throw new Error(
+          "The server did not return an attempt ID. Please check the submit_quiz_attempt function response."
+        );
+      }
+
+      // Preserve the shuffled questions for this browser session.
+      // Do not store the answer key in this snapshot.
       const attempt = {
-        attemptId: attemptRow.id,
+        attemptId,
         userId: user.id,
         testId: test.id,
         answers,
         questionStatuses,
         markedForReview,
-        timeRemaining:
-          forcedTimeRemaining !== null
-            ? Number(forcedTimeRemaining)
-            : timeRemaining,
-        submittedAt,
-        correctAnswers,
-        wrongAnswers,
-        unansweredQuestions: unattemptedQuestions,
-        answeredQuestions: answeredCount,
-        markedQuestions: markedCount,
-        score,
-        maximumScore,
+        timeRemaining: effectiveTimeRemaining,
+        submittedAt: resultData.submitted_at || submittedAt,
+
+        correctAnswers: Number(resultData.correct_answers ?? 0),
+        wrongAnswers: Number(resultData.wrong_answers ?? 0),
+        unansweredQuestions: Number(
+          resultData.unanswered_questions ?? 0
+        ),
+        answeredQuestions: Number(
+          resultData.answered_questions ?? 0
+        ),
+        markedQuestions: Number(
+          resultData.marked_questions ?? 0
+        ),
+        score: Number(resultData.score ?? 0),
+        maximumScore: Number(resultData.maximum_score ?? 0),
+
         questionSnapshots: questions.map((question) => ({
           id: question.id,
           testId: question.testId,
@@ -1769,13 +1679,10 @@ function QuizPage() {
           q: question.q,
           text: question.text,
           options: question.options,
-          correctAnswer: question.correctAnswer,
-          originalOptionIndexes:
-            question.originalOptionIndexes,
-          originalCorrectAnswer:
-            question.originalCorrectAnswer,
+          originalOptionIndexes: question.originalOptionIndexes,
           marks: question.marks,
           negativeMarks: question.negativeMarks,
+          type: question.type,
           displayOrder: question.displayOrder,
         })),
       };
@@ -1790,13 +1697,12 @@ function QuizPage() {
       try {
         sessionStorage.removeItem(activeQuizKey);
       } catch (clearError) {
-        console.warn("Unable to clear completed quiz state:", clearError);
+        console.warn(
+          "Unable to clear completed quiz state:",
+          clearError
+        );
       }
 
-      /*
-        Release the server-side active exam lock only after the
-        attempt and all answer rows have been saved successfully.
-      */
       const examSessionEnded = await endExamSession();
 
       if (!examSessionEnded) {
@@ -1805,40 +1711,25 @@ function QuizPage() {
         );
       }
 
-      const resultUrl =
-        isMockTest
-          ? `/exam/${examId}/${trackId}/mock-result/${mockId}?attemptId=${encodeURIComponent(attemptRow.id)}`
-          : `/exam/${examId}/${trackId}/result/${subjectId}/${setId}?attemptId=${encodeURIComponent(attemptRow.id)}`;
+      const resultUrl = isMockTest
+        ? `/exam/${examId}/${trackId}/mock-result/${mockId}?attemptId=${encodeURIComponent(attemptId)}`
+        : `/exam/${examId}/${trackId}/result/${subjectId}/${setId}?attemptId=${encodeURIComponent(attemptId)}`;
 
-      /*
-        The quiz currently has two browser-history entries: the original
-        quiz entry and the protected duplicate added by the Back guard.
-        Go back over the duplicate first. The popstate handler above then
-        replaces the original quiz entry with Result.
-
-        Result: Test List -> Result
-        Browser Back from Result therefore returns directly to Test List.
-      */
       pendingResultNavigationRef.current = resultUrl;
       allowQuizExitRef.current = true;
       window.history.back();
-
     } catch (error) {
-
-      console.error(
-        "Failed to save quiz attempt:",
-        error
-      );
+      console.error("Failed to save quiz attempt:", error);
 
       alert(
         error?.message ||
         "Unable to save your quiz attempt. Please try again."
       );
-
     } finally {
       setSavingAttempt(false);
     }
   };
+
 
 
   /* =========================================================

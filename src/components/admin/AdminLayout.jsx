@@ -26,6 +26,7 @@ import {
   UserPlus,
   FileWarning,
   ArrowRight,
+  CreditCard,
 } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
@@ -62,6 +63,11 @@ const AdminLayout = () => {
       name: "Tracks",
       path: "/admin/tracks",
       icon: Layers3,
+    },
+    {
+      name: "Subscriptions",
+      path: "/admin/subscriptions",
+      icon: CreditCard,
     },
     {
       name: "Subjects",

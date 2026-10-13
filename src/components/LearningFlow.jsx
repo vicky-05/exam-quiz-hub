@@ -37,6 +37,7 @@ import {
   Target,
   Users,
   Wheat,
+  LockKeyhole,
 } from "lucide-react";
 
 import { Link, Navigate, useParams } from "react-router-dom";
@@ -44,6 +45,9 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import Header from "./Header";
 
 import { getExam, formatSubjects } from "./ExamDashboard";
+
+import { useAuth } from "../context/AuthContext";
+import { supabase } from "../services/supabase";
 
 import {
   getExams,
@@ -182,11 +186,10 @@ function SubjectHero({ exam, track, subjectName, description, Icon, accent }) {
               (item, index) => (
                 <div key={item} className="flex items-center gap-3">
                   <span
-                    className={`grid h-8 w-8 place-items-center rounded-xl text-xs font-black ${
-                      index === 0
-                        ? "bg-[#FFD23F] text-[#001F4F]"
-                        : "bg-white/10 text-white/60"
-                    }`}
+                    className={`grid h-8 w-8 place-items-center rounded-xl text-xs font-black ${index === 0
+                      ? "bg-[#FFD23F] text-[#001F4F]"
+                      : "bg-white/10 text-white/60"
+                      }`}
                   >
                     {index + 1}
                   </span>
@@ -257,10 +260,10 @@ function CustomPractice({
 
   const filteredBankTests = normalizedBankSearch
     ? subjectTests.filter((item) =>
-        `set ${item.setNumber} ${item.title} ${item.totalQuestions}`
-          .toLowerCase()
-          .includes(normalizedBankSearch)
-      )
+      `set ${item.setNumber} ${item.title} ${item.totalQuestions}`
+        .toLowerCase()
+        .includes(normalizedBankSearch)
+    )
     : subjectTests;
 
   return (
@@ -328,9 +331,8 @@ function CustomPractice({
               </span>
               <ChevronDown
                 size={18}
-                className={`shrink-0 text-slate-400 transition ${
-                  bankOpen ? "rotate-180 text-[#009FE3]" : ""
-                }`}
+                className={`shrink-0 text-slate-400 transition ${bankOpen ? "rotate-180 text-[#009FE3]" : ""
+                  }`}
               />
             </button>
 
@@ -371,11 +373,10 @@ function CustomPractice({
                             setBankOpen(false);
                             setBankSearch("");
                           }}
-                          className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition ${
-                            active
-                              ? "bg-[#EAF6FD] text-[#003B82] dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]"
-                              : "text-[#001F4F] hover:bg-[#F7F9FC] dark:text-white dark:hover:bg-white/5"
-                          }`}
+                          className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-3 text-left transition ${active
+                            ? "bg-[#EAF6FD] text-[#003B82] dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]"
+                            : "text-[#001F4F] hover:bg-[#F7F9FC] dark:text-white dark:hover:bg-white/5"
+                            }`}
                         >
                           <span className="min-w-0">
                             <span className="block truncate text-xs font-black">
@@ -442,11 +443,10 @@ function CustomPractice({
                 key={count}
                 type="button"
                 onClick={() => handleQuickCount(count)}
-                className={`inline-flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-xs font-black transition ${
-                  safeCustomCount === count
-                    ? "border-[#003B82] bg-[#003B82] text-white dark:border-[#19B8F2] dark:bg-[#145AA8]"
-                    : "border-slate-200 bg-[#F7F9FC] text-[#001F4F] hover:border-[#009FE3]/50 dark:border-[#243A55] dark:bg-[#07111F] dark:text-white"
-                }`}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-xs font-black transition ${safeCustomCount === count
+                  ? "border-[#003B82] bg-[#003B82] text-white dark:border-[#19B8F2] dark:bg-[#145AA8]"
+                  : "border-slate-200 bg-[#F7F9FC] text-[#001F4F] hover:border-[#009FE3]/50 dark:border-[#243A55] dark:bg-[#07111F] dark:text-white"
+                  }`}
               >
                 {safeCustomCount === count && <Check size={12} />}
                 {count}
@@ -458,11 +458,10 @@ function CustomPractice({
             <button
               type="button"
               onClick={() => handleQuickCount(customMaxQuestions)}
-              className={`rounded-xl border px-4 py-2.5 text-xs font-black transition ${
-                safeCustomCount === customMaxQuestions
-                  ? "border-[#003B82] bg-[#003B82] text-white"
-                  : "border-[#F6C400]/40 bg-[#FFF8D9] text-[#806000] dark:bg-[#FFD23F]/10 dark:text-[#FFD23F]"
-              }`}
+              className={`rounded-xl border px-4 py-2.5 text-xs font-black transition ${safeCustomCount === customMaxQuestions
+                ? "border-[#003B82] bg-[#003B82] text-white"
+                : "border-[#F6C400]/40 bg-[#FFF8D9] text-[#806000] dark:bg-[#FFD23F]/10 dark:text-[#FFD23F]"
+                }`}
             >
               All {customMaxQuestions}
             </button>
@@ -623,14 +622,28 @@ function PracticeSetCard({
   subjectName,
   test,
   onStart,
+  canAccessPremium,
+  onUpgrade,
 }) {
   const { icon: SubjectIcon, label: subjectVisualLabel } =
     getSubjectVisual(subjectName);
 
+  const isLocked =
+    Number(test.setNumber) !== 1 && !canAccessPremium;
+
+  function handleCardClick() {
+    if (isLocked) {
+      onUpgrade();
+      return;
+    }
+
+    onStart(test);
+  }
+
   return (
     <button
       type="button"
-      onClick={() => onStart(test)}
+      onClick={() => handleCardClick()}
       className="group relative w-full overflow-hidden rounded-[24px] border border-slate-200 bg-white p-5 text-left transition duration-200 hover:-translate-y-1 hover:border-[#009FE3]/50 hover:shadow-[0_18px_45px_rgba(0,59,130,0.10)] dark:border-[#243A55] dark:bg-[#0D1B2E] dark:hover:border-[#19B8F2]/40 sm:p-6"
     >
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#003B82] via-[#009FE3] to-[#F6C400] opacity-0 transition group-hover:opacity-100" />
@@ -647,8 +660,14 @@ function PracticeSetCard({
           </span>
         </div>
 
-        <span className="rounded-full bg-[#F7F9FC] px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 dark:bg-white/5">
-          Practice Set
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider ${isLocked
+            ? "bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300"
+            : "bg-[#F7F9FC] text-slate-500 dark:bg-white/5 dark:text-slate-300"
+            }`}
+        >
+          {isLocked ? <LockKeyhole size={12} /> : null}
+          {isLocked ? "Premium Locked" : "Practice Set"}
         </span>
       </div>
 
@@ -689,8 +708,13 @@ function PracticeSetCard({
             ? `-${test.negativeMarks} negative`
             : "No negative marking"}
         </span>
-        <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#EAF6FD] text-[#003B82] transition group-hover:bg-[#009FE3] group-hover:text-white dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]">
-          <ArrowRight size={16} />
+        <span
+          className={`grid h-9 w-9 place-items-center rounded-xl ${isLocked
+            ? "bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300"
+            : "bg-[#EAF6FD] text-[#003B82] group-hover:bg-[#009FE3] group-hover:text-white dark:bg-[#19B8F2]/10 dark:text-[#19B8F2]"
+            }`}
+        >
+          {isLocked ? <LockKeyhole size={16} /> : <ArrowRight size={16} />}
         </span>
       </div>
     </button>
@@ -714,10 +738,10 @@ function StartExamModal({ test, onClose, onStart }) {
 
   const displayDurationMinutes = isCustomQuiz
     ? Math.ceil(
-        (Number(test.customCount) *
-          Number(test.durationMinutes || 0)) /
-          Math.max(Number(test.totalQuestions || 1), 1)
-      )
+      (Number(test.customCount) *
+        Number(test.durationMinutes || 0)) /
+      Math.max(Number(test.totalQuestions || 1), 1)
+    )
     : Number(test.durationMinutes || 0);
 
   return (
@@ -796,19 +820,17 @@ function StartExamModal({ test, onClose, onStart }) {
               <button
                 type="button"
                 onClick={() => setQuestionOrder("sequential")}
-                className={`rounded-2xl border p-4 text-left transition ${
-                  questionOrder === "sequential"
-                    ? "border-[#009FE3] bg-[#EAF6FD] shadow-sm dark:border-[#19B8F2] dark:bg-[#19B8F2]/10"
-                    : "border-slate-200 bg-white hover:border-[#009FE3]/40 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:hover:border-[#19B8F2]/40"
-                }`}
+                className={`rounded-2xl border p-4 text-left transition ${questionOrder === "sequential"
+                  ? "border-[#009FE3] bg-[#EAF6FD] shadow-sm dark:border-[#19B8F2] dark:bg-[#19B8F2]/10"
+                  : "border-slate-200 bg-white hover:border-[#009FE3]/40 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:hover:border-[#19B8F2]/40"
+                  }`}
               >
                 <div className="flex items-start gap-3">
                   <div
-                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
-                      questionOrder === "sequential"
-                        ? "bg-[#003B82] text-white dark:bg-[#145AA8]"
-                        : "bg-[#F7F9FC] text-[#003B82] dark:bg-[#07111F] dark:text-[#19B8F2]"
-                    }`}
+                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${questionOrder === "sequential"
+                      ? "bg-[#003B82] text-white dark:bg-[#145AA8]"
+                      : "bg-[#F7F9FC] text-[#003B82] dark:bg-[#07111F] dark:text-[#19B8F2]"
+                      }`}
                   >
                     <ListOrdered size={19} />
                   </div>
@@ -826,19 +848,17 @@ function StartExamModal({ test, onClose, onStart }) {
               <button
                 type="button"
                 onClick={() => setQuestionOrder("random")}
-                className={`rounded-2xl border p-4 text-left transition ${
-                  questionOrder === "random"
-                    ? "border-[#009FE3] bg-[#EAF6FD] shadow-sm dark:border-[#19B8F2] dark:bg-[#19B8F2]/10"
-                    : "border-slate-200 bg-white hover:border-[#009FE3]/40 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:hover:border-[#19B8F2]/40"
-                }`}
+                className={`rounded-2xl border p-4 text-left transition ${questionOrder === "random"
+                  ? "border-[#009FE3] bg-[#EAF6FD] shadow-sm dark:border-[#19B8F2] dark:bg-[#19B8F2]/10"
+                  : "border-slate-200 bg-white hover:border-[#009FE3]/40 dark:border-[#243A55] dark:bg-[#0D1B2E] dark:hover:border-[#19B8F2]/40"
+                  }`}
               >
                 <div className="flex items-start gap-3">
                   <div
-                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${
-                      questionOrder === "random"
-                        ? "bg-[#003B82] text-white dark:bg-[#145AA8]"
-                        : "bg-[#F7F9FC] text-[#003B82] dark:bg-[#07111F] dark:text-[#19B8F2]"
-                    }`}
+                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${questionOrder === "random"
+                      ? "bg-[#003B82] text-white dark:bg-[#145AA8]"
+                      : "bg-[#F7F9FC] text-[#003B82] dark:bg-[#07111F] dark:text-[#19B8F2]"
+                      }`}
                   >
                     <Shuffle size={19} />
                   </div>
@@ -886,6 +906,17 @@ function StartExamModal({ test, onClose, onStart }) {
 function SubjectSets() {
   const { examId, trackId, subjectId } = useParams();
 
+  const { user, profile } = useAuth();
+
+  const [hasPremiumAccess, setHasPremiumAccess] = useState(false);
+  const [subscriptionChecked, setSubscriptionChecked] = useState(false);
+
+  const isAdmin =
+    profile?.role === "admin" &&
+    profile?.status === "approved";
+
+  const canAccessPremium = isAdmin || hasPremiumAccess;
+
   const [supabaseExam, setSupabaseExam] = useState(null);
   const [tracks, setTracks] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -904,6 +935,92 @@ function SubjectSets() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkSubscription() {
+      setSubscriptionChecked(false);
+      setHasPremiumAccess(false);
+
+      if (!user?.id) {
+        setSubscriptionChecked(true);
+        return;
+      }
+
+      if (
+        profile?.role === "admin" &&
+        profile?.status === "approved"
+      ) {
+        setHasPremiumAccess(true);
+        setSubscriptionChecked(true);
+        return;
+      }
+
+      try {
+        const now = Date.now();
+
+        const [
+          { data: subscriptions, error: subscriptionError },
+          { data: requests, error: requestError },
+        ] = await Promise.all([
+          supabase
+            .from("user_subscriptions")
+            .select("id, request_id, starts_at, expires_at, status")
+            .eq("user_id", user.id)
+            .eq("status", "active"),
+
+          supabase
+            .from("subscription_requests")
+            .select("id, status")
+            .eq("user_id", user.id)
+            .eq("status", "approved"),
+        ]);
+
+        if (subscriptionError) throw subscriptionError;
+        if (requestError) throw requestError;
+
+        const approvedRequestIds = new Set(
+          (requests || []).map((request) => request.id)
+        );
+
+        const validSubscription = (subscriptions || []).some(
+          (subscription) => {
+            const startsAt = new Date(subscription.starts_at).getTime();
+            const expiresAt = new Date(subscription.expires_at).getTime();
+
+            return (
+              approvedRequestIds.has(subscription.request_id) &&
+              Number.isFinite(startsAt) &&
+              Number.isFinite(expiresAt) &&
+              startsAt <= now &&
+              expiresAt > now
+            );
+          }
+        );
+
+        if (!cancelled) {
+          setHasPremiumAccess(validSubscription);
+        }
+      } catch (error) {
+        console.error("Subscription access check failed:", error);
+
+        if (!cancelled) {
+          setHasPremiumAccess(false);
+        }
+      } finally {
+        if (!cancelled) {
+          setSubscriptionChecked(true);
+        }
+      }
+    }
+
+    checkSubscription();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, profile?.role, profile?.status]);
 
   useEffect(() => {
     async function loadContext() {
@@ -1062,16 +1179,16 @@ function SubjectSets() {
   const safeCustomCount =
     customMaxQuestions > 0
       ? Math.min(
-          Math.max(Number(customQuestionCount) || 1, 1),
-          customMaxQuestions
-        )
+        Math.max(Number(customQuestionCount) || 1, 1),
+        customMaxQuestions
+      )
       : 0;
 
   const customSecondsPerQuestion =
     selectedCustomTest &&
-    Number(selectedCustomTest.totalQuestions) > 0
+      Number(selectedCustomTest.totalQuestions) > 0
       ? (Number(selectedCustomTest.durationMinutes || 0) * 60) /
-        Number(selectedCustomTest.totalQuestions)
+      Number(selectedCustomTest.totalQuestions)
       : 60;
 
   const customDurationSeconds = Math.round(
@@ -1146,6 +1263,17 @@ function SubjectSets() {
     const order =
       questionOrder === "random" ? "random" : "sequential";
 
+    const selectedTest = startCustomTest || startExamTest;
+
+    if (
+      selectedTest &&
+      !canAccessPremium &&
+      Number(selectedTest.setNumber) !== 1
+    ) {
+      window.location.href = "/dashboard/subscription";
+      return;
+    }
+
     if (startCustomTest) {
       const count = Number(startCustomTest.customCount || 0);
 
@@ -1164,6 +1292,14 @@ function SubjectSets() {
   function handleStartCustomQuiz() {
     if (!selectedCustomTest) {
       setCustomError("Please choose a practice set first.");
+      return;
+    }
+
+    if (
+      !canAccessPremium &&
+      Number(selectedCustomTest?.setNumber) !== 1
+    ) {
+      window.location.href = "/dashboard/subscription";
       return;
     }
 
@@ -1334,6 +1470,10 @@ function SubjectSets() {
                           subjectName={subjectName}
                           test={test}
                           onStart={setStartExamTest}
+                          canAccessPremium={canAccessPremium}
+                          onUpgrade={() => {
+                            window.location.href = "/dashboard/subscription";
+                          }}
                         />
                       ))}
                     </div>

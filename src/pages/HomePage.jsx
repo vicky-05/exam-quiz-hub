@@ -20,6 +20,7 @@ import { Link } from "react-router-dom";
 import Header from "../components/Header";
 import ExamCard from "../components/ExamCard";
 import { exams } from "../data/exams";
+import PremiumBanner from "../components/PremiumBanner";
 import logo from "../assets/exam-quiz-hub-logo.png";
 import darkLogo from "../assets/exam-quiz-hub-logo-dark.png";
 import achievers from "../assets/achievers.png";
@@ -357,6 +358,9 @@ function HomePage() {
             </div>
           </div>
         </section>
+
+        {/* PREMIUM SUBSCRIPTION */}
+        <PremiumBanner />
 
         {/* =========================================================
             FINAL CTA

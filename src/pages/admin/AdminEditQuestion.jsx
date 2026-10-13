@@ -102,98 +102,60 @@ function AdminEditQuestion() {
       const {
         data,
         error: questionError,
-      } = await supabase
-        .from("questions")
-        .select(
-          `
-            id,
-            test_id,
-            question_text,
-            option_a,
-            option_b,
-            option_c,
-            option_d,
-            correct_answer,
-            question_type,
-            marks,
-            negative_marks,
-            display_order,
-            active
-          `
-        )
-        .eq("id", questionId)
-        .single();
+      } = await supabase.rpc("admin_get_question", {
+        p_question_id: questionId,
+      });
 
       if (questionError) {
         throw questionError;
       }
 
       if (!data) {
-        throw new Error(
-          "Question not found."
-        );
+        throw new Error("Question not found.");
       }
 
       setForm({
         test_id: data.test_id || "",
 
-        question_text:
-          data.question_text || "",
+        question_text: data.question_text || "",
 
-        option_a:
-          data.option_a || "",
-
-        option_b:
-          data.option_b || "",
-
-        option_c:
-          data.option_c || "",
-
-        option_d:
-          data.option_d || "",
+        option_a: data.option_a || "",
+        option_b: data.option_b || "",
+        option_c: data.option_c || "",
+        option_d: data.option_d || "",
 
         correct_answer:
           data.correct_answer !== null &&
-          data.correct_answer !== undefined
+            data.correct_answer !== undefined
             ? String(data.correct_answer)
             : "0",
 
-        question_type:
-          data.question_type || "mcq",
+        question_type: data.question_type || "mcq",
 
         marks:
-          data.marks !== null &&
-          data.marks !== undefined
+          data.marks !== null && data.marks !== undefined
             ? String(data.marks)
             : "1",
 
         negative_marks:
           data.negative_marks !== null &&
-          data.negative_marks !== undefined
-            ? String(
-                data.negative_marks
-              )
+            data.negative_marks !== undefined
+            ? String(data.negative_marks)
             : "0",
 
         display_order:
           data.display_order !== null &&
-          data.display_order !== undefined
-            ? String(
-                data.display_order
-              )
+            data.display_order !== undefined
+            ? String(data.display_order)
             : "1",
 
         active: Boolean(data.active),
       });
     } catch (err) {
-      console.error(
-        "Question loading failed:",
-        err
-      );
+      console.error("Question loading failed:", err);
 
       setError(
-        err?.message ||
-          "Unable to load question."
+        err?.message || "Unable to load question."
       );
     } finally {
       setLoading(false);
@@ -310,104 +272,66 @@ function AdminEditQuestion() {
    * --------------------------------------------------
    */
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+async function handleSubmit(event) {
+  event.preventDefault();
 
-    setError("");
-    setSuccess("");
+  setError("");
+  setSuccess("");
 
-    const validationError =
-      validateForm();
+  const validationError = validateForm();
 
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      const {
-        error: updateError,
-      } = await supabase
-        .from("questions")
-        .update({
-          test_id: form.test_id,
-
-          question_text:
-            form.question_text.trim(),
-
-          option_a:
-            form.option_a.trim(),
-
-          option_b:
-            form.option_b.trim(),
-
-          option_c:
-            form.option_c.trim(),
-
-          option_d:
-            form.option_d.trim(),
-
-          correct_answer:
-            Number(form.correct_answer),
-
-          question_type:
-            form.question_type.trim(),
-
-          marks:
-            Number(form.marks),
-
-          negative_marks:
-            Number(
-              form.negative_marks
-            ),
-
-          display_order:
-            Number(
-              form.display_order
-            ),
-
-          active: form.active,
-        })
-        .eq("id", questionId);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      setSuccess(
-        "Question updated successfully."
-      );
-
-      /*
-       * IMPORTANT
-       *
-       * If this editor was opened from
-       * Question Reports, return there.
-       *
-       * Otherwise return to Question Bank.
-       */
-
-      setTimeout(() => {
-        navigate(returnTo, {
-          replace: true,
-        });
-      }, 1000);
-    } catch (err) {
-      console.error(
-        "Question update failed:",
-        err
-      );
-
-      setError(
-        err?.message ||
-          "Unable to update question."
-      );
-    } finally {
-      setSaving(false);
-    }
+  if (validationError) {
+    setError(validationError);
+    return;
   }
+
+  try {
+    setSaving(true);
+
+    const { error: updateError } = await supabase.rpc(
+      "admin_update_question",
+      {
+        p_question_id: questionId,
+        p_test_id: form.test_id,
+        p_question_text: form.question_text.trim(),
+        p_option_a: form.option_a.trim(),
+        p_option_b: form.option_b.trim(),
+        p_option_c: form.option_c.trim(),
+        p_option_d: form.option_d.trim(),
+        p_correct_answer: Number(form.correct_answer),
+        p_question_type: form.question_type.trim(),
+        p_marks: Number(form.marks),
+        p_negative_marks: Number(form.negative_marks),
+        p_display_order: Number(form.display_order),
+        p_active: form.active,
+      }
+    );
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    setSuccess("Question updated successfully.");
+
+    /*
+     * Return to Question Reports if opened from there;
+     * otherwise return to Question Bank.
+     */
+    setTimeout(() => {
+      navigate(returnTo, {
+        replace: true,
+      });
+    }, 1000);
+  } catch (err) {
+    console.error("Question update failed:", err);
+
+    setError(
+      err?.message || "Unable to update question."
+    );
+  } finally {
+    setSaving(false);
+  }
+}
 
   /*
    * --------------------------------------------------
@@ -555,7 +479,7 @@ function AdminEditQuestion() {
 
                       {test.set_number !==
                         null &&
-                      test.set_number !==
+                        test.set_number !==
                         undefined
                         ? ` — Set ${test.set_number}`
                         : ""}
