@@ -27,6 +27,8 @@ import {
   FileWarning,
   ArrowRight,
   CreditCard,
+  Star,
+  ImagePlus,
 } from "lucide-react";
 
 import { useAuth } from "../../context/AuthContext";
@@ -110,9 +112,19 @@ const AdminLayout = () => {
       icon: Lightbulb,
     },
     {
+      name: "Aspirant Reviews",
+      path: "/admin/aspirant-reviews",
+      icon: Star,
+    },
+    {
       name: "Announcements",
       path: "/admin/announcements",
       icon: Megaphone,
+    },
+    {
+      name: "Advertisements",
+      path: "/admin/advertisements",
+      icon: ImagePlus,
     },
     {
       name: "Settings",

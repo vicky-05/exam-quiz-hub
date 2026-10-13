@@ -14,7 +14,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import AccessPendingPage from "./pages/AccessPendingPage";
-
+import ReviewPage from "./pages/ReviewPage";
 import AdminRoute from "./components/AdminRoute";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminLayout from "./components/admin/AdminLayout";
@@ -35,6 +35,9 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import QuestionReportsPage from "./pages/admin/QuestionReportsPage";
 import AdminAnnouncements from "./pages/admin/AdminAnnouncements";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
+import AdminAspirantReviews from "./pages/admin/AdminAspirantReviews";
+import AdminAdvertisements from "./pages/admin/AdminAdvertisements";
+import AdvertisementPopup from "./components/AdvertisementPopup";
 
 import MotivationPage from "./pages/MotivationPage";
 
@@ -67,6 +70,7 @@ import AdminStudyMaterials from "./pages/admin/AdminStudyMaterials";
 function App() {
   return (
     <AuthProvider>
+      <AdvertisementPopup />
       <Routes>
 
         {/* =========================================
@@ -231,6 +235,14 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/dashboard/review"
+          element={
+            <ProtectedRoute>
+              <ReviewPage />
+            </ProtectedRoute>
+          }
+        />
 
 
         {/* =========================================
@@ -359,6 +371,11 @@ function App() {
             element={<AdminAttemptDetails />}
           />
 
+          <Route
+            path="aspirant-reviews"
+            element={<AdminAspirantReviews />}
+          />
+
           {/* Motivation */}
 
           <Route
@@ -399,7 +416,10 @@ function App() {
             path="subscriptions"
             element={<AdminSubscriptions />}
           />
-
+          <Route
+            path="advertisements"
+            element={<AdminAdvertisements />}
+          />
           {/* Edit Question */}
 
           <Route

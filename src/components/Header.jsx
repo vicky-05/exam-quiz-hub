@@ -17,6 +17,7 @@ import {
   House,
   BarChart3,
   CircleUserRound,
+  Crown,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -34,6 +35,46 @@ import {
 
 function Header() {
   const { user, signOut } = useAuth();
+  const [isPremiumUser, setIsPremiumUser] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkPremiumStatus() {
+      if (!user?.id) {
+        setIsPremiumUser(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from("user_subscriptions")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .gt("expires_at", new Date().toISOString())
+          .limit(1);
+
+        if (error) throw error;
+
+        if (!cancelled) {
+          setIsPremiumUser((data || []).length > 0);
+        }
+      } catch (error) {
+        console.error("Unable to check Premium status:", error);
+
+        if (!cancelled) {
+          setIsPremiumUser(false);
+        }
+      }
+    }
+
+    checkPremiumStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -818,11 +859,10 @@ function Header() {
             <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary navigation">
               <Link
                 to="/"
-                className={`group relative flex items-center gap-2 rounded-xl px-4 py-3 text-[13px] font-extrabold tracking-[-0.01em] transition-all duration-200 ${
-                  isActive("/")
-                    ? "text-[#003B82] dark:text-[#19B8F2]"
-                    : "text-[#10233F] hover:bg-[#F2F7FD] hover:text-[#003B82] dark:text-slate-200 dark:hover:bg-white/5 dark:hover:text-[#19B8F2]"
-                }`}
+                className={`group relative flex items-center gap-2 rounded-xl px-4 py-3 text-[13px] font-extrabold tracking-[-0.01em] transition-all duration-200 ${isActive("/")
+                  ? "text-[#003B82] dark:text-[#19B8F2]"
+                  : "text-[#10233F] hover:bg-[#F2F7FD] hover:text-[#003B82] dark:text-slate-200 dark:hover:bg-white/5 dark:hover:text-[#19B8F2]"
+                  }`}
               >
                 <House size={18} strokeWidth={2.3} />
                 <span>Home</span>
@@ -839,11 +879,10 @@ function Header() {
                     setExamOpen((value) => !value);
                     setAccountOpen(false);
                   }}
-                  className={`group flex items-center gap-1.5 rounded-xl px-4 py-3 text-[13px] font-extrabold tracking-[-0.01em] transition-all duration-200 ${
-                    examOpen
-                      ? "bg-[#F2F7FD] text-[#003B82] dark:bg-white/5 dark:text-[#19B8F2]"
-                      : "text-[#10233F] hover:bg-[#F2F7FD] hover:text-[#003B82] dark:text-slate-200 dark:hover:bg-white/5 dark:hover:text-[#19B8F2]"
-                  }`}
+                  className={`group flex items-center gap-1.5 rounded-xl px-4 py-3 text-[13px] font-extrabold tracking-[-0.01em] transition-all duration-200 ${examOpen
+                    ? "bg-[#F2F7FD] text-[#003B82] dark:bg-white/5 dark:text-[#19B8F2]"
+                    : "text-[#10233F] hover:bg-[#F2F7FD] hover:text-[#003B82] dark:text-slate-200 dark:hover:bg-white/5 dark:hover:text-[#19B8F2]"
+                    }`}
                   aria-expanded={examOpen}
                 >
                   <GraduationCap size={18} strokeWidth={2.2} />
@@ -882,11 +921,10 @@ function Header() {
                           className="group flex items-center gap-3 rounded-xl p-3 transition hover:bg-[#F2F7FD] dark:hover:bg-white/5"
                         >
                           <div
-                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
-                              index % 2 === 0
-                                ? "bg-[#EAF4FF] text-[#003B82] dark:bg-[#145AA8]/20 dark:text-[#19B8F2]"
-                                : "bg-[#FFF6D9] text-[#D98F00] dark:bg-[#F6C400]/15 dark:text-[#FFD23F]"
-                            }`}
+                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${index % 2 === 0
+                              ? "bg-[#EAF4FF] text-[#003B82] dark:bg-[#145AA8]/20 dark:text-[#19B8F2]"
+                              : "bg-[#FFF6D9] text-[#D98F00] dark:bg-[#F6C400]/15 dark:text-[#FFD23F]"
+                              }`}
                           >
                             {index % 2 === 0 ? (
                               <BookOpen size={19} />
@@ -964,11 +1002,10 @@ function Header() {
                     }}
                     aria-label="Notifications"
                     aria-expanded={notificationOpen}
-                    className={`relative flex h-10 w-10 items-center justify-center rounded-xl border bg-white text-[#10233F] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#F2F7FD] hover:text-[#003B82] sm:h-11 sm:w-11 dark:bg-[#12243B] dark:text-slate-100 dark:hover:bg-[#16345C] dark:hover:text-[#19B8F2] ${
-                      notificationOpen
-                        ? "border-[#009FE3]/45 bg-[#F2F7FD] text-[#003B82] dark:border-[#19B8F2]/50 dark:bg-[#16345C] dark:text-[#19B8F2]"
-                        : "border-slate-200 hover:border-[#009FE3]/35 dark:border-[#24496F] dark:hover:border-[#19B8F2]/40"
-                    }`}
+                    className={`relative flex h-10 w-10 items-center justify-center rounded-xl border bg-white text-[#10233F] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#F2F7FD] hover:text-[#003B82] sm:h-11 sm:w-11 dark:bg-[#12243B] dark:text-slate-100 dark:hover:bg-[#16345C] dark:hover:text-[#19B8F2] ${notificationOpen
+                      ? "border-[#009FE3]/45 bg-[#F2F7FD] text-[#003B82] dark:border-[#19B8F2]/50 dark:bg-[#16345C] dark:text-[#19B8F2]"
+                      : "border-slate-200 hover:border-[#009FE3]/35 dark:border-[#24496F] dark:hover:border-[#19B8F2]/40"
+                      }`}
                   >
                     <Bell size={19} strokeWidth={2.3} />
 
@@ -1002,14 +1039,47 @@ function Header() {
                       setAccountOpen((value) => !value);
                       setExamOpen(false);
                     }}
-                    className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-r from-[#003B82] to-[#009FE3] text-white shadow-[0_8px_22px_rgba(0,96,180,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(0,96,180,0.30)]"
+                    className={`relative flex h-11 w-11 items-center justify-center
+    rounded-full transition-all duration-300
+    hover:-translate-y-0.5
+    ${isPremiumUser
+                        ? "bg-gradient-to-br from-[#FFF0A8] via-[#F6C445] to-[#C88700] shadow-[0_8px_24px_rgba(200,135,0,0.30)] hover:shadow-[0_12px_30px_rgba(200,135,0,0.42)]"
+                        : "bg-gradient-to-r from-[#003B82] to-[#009FE3] shadow-[0_8px_22px_rgba(0,96,180,0.22)] hover:shadow-[0_12px_28px_rgba(0,96,180,0.30)]"
+                      }`}
                     aria-expanded={accountOpen}
-                    aria-label="Account"
-                    title={displayName}
+                    aria-label={
+                      isPremiumUser
+                        ? "Premium account"
+                        : "Account"
+                    }
+                    title={
+                      isPremiumUser
+                        ? `${displayName} — Premium`
+                        : `${displayName} — Normal account`
+                    }
                   >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-xs font-black ring-1 ring-white/15">
+                    <span
+                      className={`flex h-8 w-8 items-center justify-center
+      rounded-full text-xs font-black ring-1
+      ${isPremiumUser
+                          ? "bg-[#7A4B00] text-white ring-[#FFE9A0]/80"
+                          : "bg-white/15 text-white ring-white/15"
+                        }`}
+                    >
                       {userInitial}
                     </span>
+
+                    {isPremiumUser && (
+                      <span
+                        className="absolute -right-1 -top-1 flex h-5 w-5
+        items-center justify-center rounded-full
+        border-2 border-white bg-[#10233F] text-[#FFD66B]
+        shadow-sm dark:border-[#0D1B2E]"
+                        aria-label="Premium member"
+                      >
+                        <Crown size={11} strokeWidth={2.8} />
+                      </span>
+                    )}
                   </button>
 
                   {accountOpen ? (
@@ -1320,9 +1390,8 @@ function Header() {
 
                   <ChevronDown
                     size={16}
-                    className={`transition-transform ${
-                      examOpen ? "rotate-180" : ""
-                    }`}
+                    className={`transition-transform ${examOpen ? "rotate-180" : ""
+                      }`}
                   />
                 </button>
 
@@ -1397,9 +1466,8 @@ function Header() {
 
                     <ChevronDown
                       size={16}
-                      className={`transition-transform ${
-                        notificationOpen ? "rotate-180" : ""
-                      }`}
+                      className={`transition-transform ${notificationOpen ? "rotate-180" : ""
+                        }`}
                     />
                   </button>
 
@@ -1698,11 +1766,10 @@ function NotificationDropdown({
                 key={notification.id}
                 type="button"
                 onClick={() => onNotificationClick(notification)}
-                className={`flex w-full gap-3 rounded-xl p-3 text-left transition ${
-                  notification.is_read
-                    ? "hover:bg-slate-50 dark:hover:bg-white/5"
-                    : "bg-[#EAF4FF]/70 hover:bg-[#EAF4FF] dark:bg-[#145AA8]/10 dark:hover:bg-[#145AA8]/20"
-                }`}
+                className={`flex w-full gap-3 rounded-xl p-3 text-left transition ${notification.is_read
+                  ? "hover:bg-slate-50 dark:hover:bg-white/5"
+                  : "bg-[#EAF4FF]/70 hover:bg-[#EAF4FF] dark:bg-[#145AA8]/10 dark:hover:bg-[#145AA8]/20"
+                  }`}
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-lg shadow-sm dark:bg-[#12243B]">
                   {notification.icon || getNotificationIcon(notification.category)}
@@ -1711,11 +1778,10 @@ function NotificationDropdown({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start gap-2">
                     <p
-                      className={`min-w-0 flex-1 truncate text-xs ${
-                        notification.is_read
-                          ? "font-bold text-[#10233F] dark:text-slate-200"
-                          : "font-black text-[#003B82] dark:text-white"
-                      }`}
+                      className={`min-w-0 flex-1 truncate text-xs ${notification.is_read
+                        ? "font-bold text-[#10233F] dark:text-slate-200"
+                        : "font-black text-[#003B82] dark:text-white"
+                        }`}
                     >
                       {notification.title}
                     </p>
@@ -1780,11 +1846,10 @@ function MobileNotifications({
                 key={notification.id}
                 type="button"
                 onClick={() => onNotificationClick(notification)}
-                className={`flex w-full gap-3 rounded-xl p-3 text-left transition ${
-                  notification.is_read
-                    ? "hover:bg-white dark:hover:bg-white/5"
-                    : "bg-white dark:bg-white/5"
-                }`}
+                className={`flex w-full gap-3 rounded-xl p-3 text-left transition ${notification.is_read
+                  ? "hover:bg-white dark:hover:bg-white/5"
+                  : "bg-white dark:bg-white/5"
+                  }`}
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EAF4FF] text-base dark:bg-[#145AA8]/20">
                   {notification.icon || getNotificationIcon(notification.category)}
@@ -1859,11 +1924,10 @@ function MobileBottomNavItem({
     <button
       type="button"
       onClick={onClick}
-      className={`relative flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1.5 transition-all duration-200 ${
-        active
-          ? "bg-[#EAF4FF] text-[#003B82] dark:bg-[#145AA8]/20 dark:text-[#19B8F2]"
-          : "text-slate-500 hover:bg-slate-50 hover:text-[#003B82] dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-[#19B8F2]"
-      }`}
+      className={`relative flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-2xl px-2 py-1.5 transition-all duration-200 ${active
+        ? "bg-[#EAF4FF] text-[#003B82] dark:bg-[#145AA8]/20 dark:text-[#19B8F2]"
+        : "text-slate-500 hover:bg-slate-50 hover:text-[#003B82] dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-[#19B8F2]"
+        }`}
       aria-current={active ? "page" : undefined}
     >
       <span className="relative">
@@ -1914,11 +1978,10 @@ function MobileLink({
     <Link
       to={to}
       onClick={onClick}
-      className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-black transition ${
-        active
-          ? "bg-[#EAF4FF] text-[#003B82] dark:bg-white/5"
-          : "text-[#10233F] hover:bg-[#EAF4FF] hover:text-[#003B82] dark:text-white dark:hover:bg-white/5"
-      }`}
+      className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-black transition ${active
+        ? "bg-[#EAF4FF] text-[#003B82] dark:bg-white/5"
+        : "text-[#10233F] hover:bg-[#EAF4FF] hover:text-[#003B82] dark:text-white dark:hover:bg-white/5"
+        }`}
     >
       <span
         className={

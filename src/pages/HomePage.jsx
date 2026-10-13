@@ -21,6 +21,8 @@ import Header from "../components/Header";
 import ExamCard from "../components/ExamCard";
 import { exams } from "../data/exams";
 import PremiumBanner from "../components/PremiumBanner";
+import HowToBuyPremium from "../components/HowToBuyPremium";
+import AspirantReviews from "../components/AspirantReviews";
 import logo from "../assets/exam-quiz-hub-logo.png";
 import darkLogo from "../assets/exam-quiz-hub-logo-dark.png";
 import achievers from "../assets/achievers.png";
@@ -73,38 +75,38 @@ function HomePage() {
   useEffect(() => {
     let cancelled = false;
 
+
     async function loadHomeStats() {
       try {
-        const [testsResult, examsResult] = await Promise.all([
-          supabase
-            .from("tests")
-            .select("total_questions", { count: "exact" })
-            .eq("active", true),
-          supabase
-            .from("exams")
-            .select("id", { count: "exact", head: true })
-            .eq("active", true),
-        ]);
+        const { data, error } = await supabase.rpc(
+          "get_public_platform_stats"
+        );
 
         if (cancelled) return;
 
-        if (testsResult.error) throw testsResult.error;
-        if (examsResult.error) throw examsResult.error;
+        if (error) throw error;
 
-        const questionTotal = (testsResult.data ?? []).reduce(
-          (sum, test) => sum + Number(test.total_questions || 0),
-          0
-        );
+        const totals = Array.isArray(data) ? data[0] : data;
+
+        if (!totals) {
+          throw new Error("Platform statistics were not returned.");
+        }
 
         setStats({
-          questions: questionTotal,
-          testSeries: testsResult.count ?? (testsResult.data ?? []).length,
-          exams: examsResult.count ?? 0,
+          questions: Number(totals.questions ?? 0),
+          testSeries: Number(totals.test_series ?? 0),
+          exams: Number(totals.exams ?? 0),
         });
       } catch (error) {
-        console.error("Unable to load homepage statistics:", error);
+        if (!cancelled) {
+          console.error(
+            "Unable to load homepage statistics:",
+            error
+          );
+        }
       }
     }
+
 
     loadHomeStats();
 
@@ -261,6 +263,8 @@ function HomePage() {
           </div>
         </section>
 
+        <HowToBuyPremium />
+
         {/* =========================================================
             DAILY MOTIVATION
         ========================================================== */}
@@ -361,6 +365,8 @@ function HomePage() {
 
         {/* PREMIUM SUBSCRIPTION */}
         <PremiumBanner />
+
+        <AspirantReviews />
 
         {/* =========================================================
             FINAL CTA
